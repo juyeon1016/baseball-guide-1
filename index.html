@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>야구장 직관생존 GUIDE</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        turf: {
+                            DEFAULT: '#1b5e20',
+                            light: '#2e7d32',
+                            dark: '#0f3d0e',
+                            accent: '#4caf50'
+                        },
+                        clay: {
+                            DEFAULT: '#e65100',
+                            light: '#f57c00',
+                            dark: '#b23c00'
+                        },
+                        kboNavy: '#0a192f',
+                        gold: '#ffb300'
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar and canvas cursor styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #1b5e20; border-radius: 4px; }
+        canvas { cursor: grab; }
+        canvas:active { cursor: grabbing; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .pulse-subtle {
+            animation: pulse-border 2s infinite;
+        }
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800 min-h-screen flex flex-col antialiased selection:bg-turf-light selection:text-white">
+
+    <!-- Toast Notification Overlay -->
+    <div id="toast" class="fixed top-5 right-5 z-50 transform translate-y-[-150%] transition-transform duration-300 ease-out bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-slate-700 pointer-events-none">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-green-400 text-xl"></i>
+        <span id="toast-msg" class="font-bold text-sm">알림 메시지</span>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="app" class="flex-1 flex flex-col max-w-md md:max-w-4xl mx-auto w-full bg-white min-h-screen shadow-2xl relative overflow-hidden">
+        
+        <!-- Persistent Header Bar (Visible on Stadium Screens & Home) -->
+        <header id="global-header" class="hidden bg-kboNavy text-white px-4 py-3 sticky top-0 z-30 shadow-md flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <button id="btn-header-back" onclick="goToHome()" class="p-2 rounded-lg hover:bg-slate-800 transition text-slate-200">
+                    <i class="fa-solid fa-house"></i>
+                </button>
+                <span id="header-title" class="font-extrabold text-lg tracking-tight text-white flex items-center gap-2">
+                    <i class="fa-solid fa-baseball text-clay-light"></i> 야구장 직관생존 GUIDE
+                </span>
+            </div>
+            <!-- Wallet Badge -->
+            <div onclick="openPointsModal()" class="cursor-pointer bg-slate-800/80 hover:bg-slate-700 px-3 py-1.5 rounded-full border border-gold/40 flex items-center gap-2 transition">
+                <i class="fa-solid fa-coins text-gold text-sm animate-bounce"></i>
+                <span id="user-points" class="font-black text-amber-300 text-sm">1,000 P</span>
+            </div>
+        </header>
+
+        <!-- ========================================== -->
+        <!-- SCREEN 1: 시작 화면 (START / LOGIN SCREEN) -->
+        <!-- ========================================== -->
+        <section id="screen-auth" class="flex-1 flex flex-col justify-between p-6 relative bg-gradient-to-b from-kboNavy via-slate-900 to-turf-dark text-white overflow-y-auto">
+            <!-- Background Baseball Pattern SVG -->
+            <div class="absolute inset-0 opacity-10 pointer-events-none overflow-hidden flex items-center justify-center">
+                <svg viewBox="0 0 400 400" class="w-[600px] h-[600px] text-white stroke-current fill-none stroke-[2]">
+                    <circle cx="200" cy="200" r="180"/>
+                    <path d="M 60,100 Q 150,200 60,300" />
+                    <path d="M 340,100 Q 250,200 340,300" />
+                </svg>
+            </div>
+
+            <!-- Auth Header -->
+            <div class="relative z-10 text-center mt-6">
+                <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-clay to-amber-500 mb-4 shadow-xl border-2 border-white/20">
+                    <i class="fa-solid fa-baseball-bat-ball text-4xl text-white"></i>
+                </div>
+                <h1 class="text-3xl font-black tracking-tight text-white mb-2">야구장 직관생존 GUIDE</h1>
+                <p class="text-slate-300 text-sm font-medium">9개 구장 먹거리 · 명당 시야 360° · 직관 필수 팁</p>
+            </div>
+
+            <!-- Auth Form Card (Login vs Signup Switcher) -->
+            <div class="relative z-10 glass-card text-slate-900 p-6 rounded-3xl shadow-2xl my-6 border border-white/40">
+                <!-- LOGIN FORM -->
+                <div id="form-login-container">
+                    <div class="mb-4 text-center">
+                        <h2 class="text-xl font-bold text-slate-900">직관러 로그인</h2>
+                        <p class="text-xs text-slate-500">포인트 적립과 야프 혜택을 누리세요!</p>
+                    </div>
+
+                    <form onsubmit="handleLogin(event)" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">이메일 또는 아이디</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-envelope absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                                <input type="text" id="login-email" value="fan@kbo.com" required placeholder="example@kbo.com" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-turf focus:border-transparent outline-none text-sm font-medium">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">비밀번호</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                                <input type="password" id="login-pw" value="123456" required placeholder="••••••••" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-turf focus:border-transparent outline-none text-sm font-medium">
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="w-full bg-gradient-to-r from-turf to-turf-light text-white font-extrabold py-3 rounded-xl shadow-lg hover:brightness-110 active:scale-[0.99] transition text-base flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-right-to-bracket"></i> 로그인
+                        </button>
+                    </form>
+
+                    <!-- Quick Guest Login Button -->
+                    <button onclick="guestLogin()" class="w-full mt-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition border border-slate-300 flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-user-clock text-slate-500"></i> 체험 계정으로 빠른 입장
+                    </button>
+
+                    <!-- Account Recovery & Register Links -->
+                    <div class="mt-4 pt-3 border-t border-slate-200 flex justify-between text-xs font-bold text-slate-600 px-1">
+                        <button onclick="openFindModal('id')" class="hover:text-turf transition">아이디 찾기</button>
+                        <span class="text-slate-300">|</span>
+                        <button onclick="openFindModal('pw')" class="hover:text-turf transition">비밀번호 찾기</button>
+                        <span class="text-slate-300">|</span>
+                        <button onclick="toggleAuthForm('signup')" class="text-clay font-black hover:underline transition">회원가입</button>
+                    </div>
+                </div>
+
+                <!-- SIGNUP FORM (Initially Hidden) -->
+                <div id="form-signup-container" class="hidden">
+                    <div class="mb-3 text-center">
+                        <h2 class="text-xl font-bold text-slate-900">신규 직관러 회원가입</h2>
+                        <p class="text-xs text-slate-500">가입 즉시 1,000P 지급!</p>
+                    </div>
+
+                    <form onsubmit="handleSignup(event)" class="space-y-2.5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-0.5">이메일 주소</label>
+                            <input type="email" id="signup-email" required placeholder="baseball@kbo.com" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-turf outline-none text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-0.5">이름 (닉네임)</label>
+                            <input type="text" id="signup-name" required placeholder="홈런왕" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-turf outline-none text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-0.5">비밀번호</label>
+                            <input type="password" id="signup-pw" required placeholder="6자리 이상 입력" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-turf outline-none text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-0.5">비밀번호 재확인</label>
+                            <input type="password" id="signup-pw-confirm" required placeholder="비밀번호 다시 입력" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-turf outline-none text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-0.5">전화번호</label>
+                            <input type="tel" id="signup-phone" required placeholder="010-1234-5678" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-turf outline-none text-xs">
+                        </div>
+
+                        <button type="submit" class="w-full mt-2 bg-gradient-to-r from-clay to-amber-600 text-white font-extrabold py-3 rounded-xl shadow-lg hover:brightness-110 transition text-sm flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-user-plus"></i> 가입 완료하고 홈으로 이동
+                        </button>
+                    </form>
+
+                    <div class="mt-3 text-center">
+                        <button onclick="toggleAuthForm('login')" class="text-xs text-slate-500 font-bold hover:text-slate-800 transition">
+                            <i class="fa-solid fa-arrow-left"></i> 로그인 화면으로 돌아가기
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Disclaimer -->
+            <div class="relative z-10 text-center text-xs text-slate-400">
+                <p>© 2026 KBO Stadium Survival Guide · 오프라인 단독 전용 앱</p>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- SCREEN 2: 홈 화면 (STADIUM SELECTION HUB)   -->
+        <!-- ========================================== -->
+        <section id="screen-home" class="hidden flex-1 flex flex-col bg-slate-50 overflow-y-auto">
+            <!-- Top Hero Banner -->
+            <div class="bg-gradient-to-r from-kboNavy to-turf-dark text-white p-5 shadow-lg relative">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <span class="inline-block bg-clay text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-full mb-1">KBO League Season 2026</span>
+                        <h2 class="text-2xl font-black tracking-tight" id="user-welcome">반갑습니다, 직관러님! 👋</h2>
+                        <p class="text-xs text-slate-300 mt-1">방문 예정이신 야구장을 선택해 주세요.</p>
+                    </div>
+                    <!-- Quick App Review Button -->
+                    <button onclick="openAppReviewModal()" class="bg-amber-400 hover:bg-amber-300 text-slate-900 px-3 py-2 rounded-xl text-xs font-black shadow-md transition flex items-center gap-1.5 animate-pulse">
+                        <i class="fa-solid fa-star text-slate-900"></i> 앱 리뷰 (+500P)
+                    </button>
+                </div>
+
+                <!-- Prominent 'Equipment Rental / Stadium Selection' Big Button -->
+                <button onclick="scrollToStadiumList()" class="w-full mt-2 bg-gradient-to-r from-clay-light via-clay to-amber-600 text-white font-black py-3.5 px-4 rounded-2xl shadow-xl flex items-center justify-between border border-white/20 hover:scale-[1.01] transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-[#fa8072] fa-baseball-bat-ball"></i>
+                        </div>
+                        <div class="text-left">
+                            <div class="text-sm font-black">장비 대여 & KBO 9개 구장 선택하기</div>
+                            <div class="text-[11px] text-amber-100 font-normal">먹거리·360도 좌석 시야·내외부 지도 한눈에 보기</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-circle-chevron-down text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Stadium Cards Section -->
+            <div class="p-4 flex-1">
+                <div id="stadium-list-anchor" class="flex items-center justify-between mb-4">
+                    <h3 class="font-extrabold text-slate-800 text-base flex items-center gap-2">
+                        <i class="fa-solid fa-location-dot text-turf"></i> KBO 홈 구장 목록 (총 9개 구장)
+                    </h3>
+                    <span class="text-xs text-slate-500 font-bold">10개 구단 지원</span>
+                </div>
+
+                <!-- Grid of 9 Stadiums -->
+                <div id="stadium-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pb-8">
+                    <!-- Dynamic rendering via JS -->
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- SCREEN 3: 각 야구장 메인 화면 (STADIUM VIEW) -->
+        <!-- ========================================== -->
+        <section id="screen-stadium" class="hidden flex-1 flex flex-col bg-slate-50 overflow-y-auto">
+            
+            <!-- Stadium Header & Title Bar -->
+            <div class="bg-white border-b border-slate-200 px-4 pt-3 pb-2 sticky top-0 z-20 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <button onclick="goToHome()" class="text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-arrow-left"></i> 구장 변경
+                    </button>
+                    <!-- Main Dynamic Stadium Title -->
+                    <h2 id="active-stadium-title" class="text-xl font-black text-slate-900 tracking-tight text-center flex-1">
+                        고척스카이돔
+                    </h2>
+                    <span id="active-stadium-team" class="text-[11px] font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md border border-slate-200">
+                        키움 히어로즈
+                    </span>
+                </div>
+
+                <!-- 3 Main Tabs Navigation -->
+                <div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl font-extrabold text-sm text-center">
+                    <button id="tab-btn-food" onclick="switchStadiumTab('food')" class="py-2 rounded-lg transition text-white bg-turf shadow">
+                        <i class="fa-solid fa-utensils mr-1"></i> 먹거리
+                    </button>
+                    <button id="tab-btn-seat" onclick="switchStadiumTab('seat')" class="py-2 rounded-lg transition text-slate-600 hover:text-slate-900">
+                        <i class="fa-solid fa-chair mr-1"></i> 좌석 (360°)
+                    </button>
+                    <button id="tab-btn-map" onclick="switchStadiumTab('map')" class="py-2 rounded-lg transition text-slate-600 hover:text-slate-900">
+                        <i class="fa-solid fa-map-location-dot mr-1"></i> 지도
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB CONTENTS CONTAINER -->
+            <div class="p-4 flex-1">
+
+                <!-- --------------------------------------- -->
+                <!-- TAB 1: 먹거리 (FOOD & RANKINGS)          -->
+                <!-- --------------------------------------- -->
+                <div id="tab-content-food" class="space-y-5">
+                    
+                    <!-- Top Info Box: Ya-Foo Ranking Side/Top Panel -->
+                    <div class="bg-gradient-to-r from-amber-500 to-clay text-white rounded-2xl p-4 shadow-md">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="font-black text-base flex items-center gap-1.5">
+                                <i class="fa-solid fa-crown text-yellow-200"></i> 구장 별 인기 '야푸' 랭킹 TOP 5
+                            </h4>
+                            <span class="text-[10px] bg-white/20 font-bold px-2 py-0.5 rounded-full">구매 수 기준</span>
+                        </div>
+                        <div id="food-ranking-list" class="space-y-1.5 text-xs">
+                            <!-- Dynamic Top 5 items -->
+                        </div>
+                    </div>
+
+                    <!-- Food List Tabs: Internal vs External -->
+                    <div>
+                        <div class="flex gap-2 mb-3 border-b border-slate-200 pb-2">
+                            <button id="btn-food-filter-in" onclick="filterFoodLocation('in')" class="px-4 py-1.5 rounded-xl font-bold text-xs bg-slate-900 text-white transition">
+                                🏟️ 야구장 내부 음식점
+                            </button>
+                            <button id="btn-food-filter-out" onclick="filterFoodLocation('out')" class="px-4 py-1.5 rounded-xl font-bold text-xs bg-slate-200 text-slate-700 hover:bg-slate-300 transition">
+                                🏙️ 야구장 외부 음식점
+                            </button>
+                        </div>
+
+                        <!-- Vendor List Grid -->
+                        <div id="food-vendors-container" class="space-y-3">
+                            <!-- Dynamic food vendors -->
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- --------------------------------------- -->
+                <!-- TAB 2: 좌석 (SEATS & 360 PANORAMA VIEW)  -->
+                <!-- --------------------------------------- -->
+                <div id="tab-content-seat" class="hidden space-y-4">
+                    
+                    <!-- Convenience Filter Buttons -->
+                    <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
+                            <span><i class="fa-solid fa-filter text-turf"></i> 편의 맞춤 필터</span>
+                            <button onclick="resetSeatFilters()" class="text-[11px] text-slate-400 hover:text-slate-600 underline">초기화</button>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button id="filter-shade" onclick="toggleSeatFilter('shade')" class="px-2.5 py-1.5 rounded-xl text-xs font-bold border border-slate-300 text-slate-700 bg-slate-50 hover:bg-amber-50 transition">
+                                ☀️ 여름철 그늘 우선석
+                            </button>
+                            <button id="filter-exit" onclick="toggleSeatFilter('exit')" class="px-2.5 py-1.5 rounded-xl text-xs font-bold border border-slate-300 text-slate-700 bg-slate-50 hover:bg-blue-50 transition">
+                                🚪 출입구/화장실 인접석
+                            </button>
+                            <button id="filter-cheer" onclick="toggleSeatFilter('cheer')" class="px-2.5 py-1.5 rounded-xl text-xs font-bold border border-slate-300 text-slate-700 bg-slate-50 hover:bg-rose-50 transition">
+                                📣 응원 열기 최고석
+                            </button>
+                            <button id="filter-family" onclick="toggleSeatFilter('family')" class="px-2.5 py-1.5 rounded-xl text-xs font-bold border border-slate-300 text-slate-700 bg-slate-50 hover:bg-emerald-50 transition">
+                                👨‍👩‍👧 가족/테이블 추천석
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Active Filter Notice Banner -->
+                    <div id="seat-filter-notice" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-800 p-2.5 rounded-xl text-xs font-bold flex items-center justify-between">
+                        <span id="seat-filter-notice-text">추천 좌석 구역이 강조 표시되었습니다.</span>
+                    </div>
+
+                    <!-- Interactive Seating Diagram -->
+                    <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm text-center">
+                        <div class="flex justify-between items-center mb-2 px-1">
+                            <span class="text-xs font-extrabold text-slate-800">구장 좌석 구역 배치도</span>
+                            <span class="text-[10px] text-slate-400">구역을 터치하면 360° 시야 체험</span>
+                        </div>
+                        <div id="seat-svg-container" class="w-full bg-slate-900 rounded-xl overflow-hidden p-2 flex items-center justify-center min-h-[220px]">
+                            <!-- SVG seating diagram injected dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- 360 Degree View Interactive Viewer Card -->
+                    <div class="bg-slate-900 text-white p-4 rounded-2xl shadow-lg border border-slate-800">
+                        <div class="flex items-center justify-between mb-2">
+                            <div>
+                                <span id="view360-zone-title" class="font-extrabold text-base text-gold">응원지정석 (1루)</span>
+                                <p class="text-[11px] text-slate-400">마우스 드래그 또는 터치로 360도 시야 회전</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs font-bold text-slate-400">시야 평점</span>
+                                <div id="view360-rating" class="text-amber-400 font-black text-sm">★ 4.8 / 5.0</div>
+                            </div>
+                        </div>
+
+                        <!-- Canvas 360 Viewer Canvas -->
+                        <div class="relative w-full h-56 bg-slate-950 rounded-xl overflow-hidden border border-slate-700">
+                            <canvas id="canvas-360" class="w-full h-full block"></canvas>
+                            <!-- Touch Control Hint Overlay -->
+                            <div class="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur px-2.5 py-1 rounded-lg text-[10px] text-slate-300 font-bold pointer-events-none flex items-center gap-1">
+                                <i class="fa-solid fa-arrows-left-right text-gold"></i> 드래그하여 시야 조절
+                            </div>
+                        </div>
+
+                        <!-- 360 Rotation Slider Controls -->
+                        <div class="mt-3 flex items-center gap-3">
+                            <i class="fa-solid fa-[#fa8072] fa-rotate text-slate-400 text-xs"></i>
+                            <input type="range" id="slider-360" min="0" max="360" value="0" oninput="update360Angle(this.value)" class="flex-1 accent-turf cursor-pointer">
+                            <span id="slider-angle-label" class="text-xs font-mono font-bold text-slate-300 w-10 text-right">0°</span>
+                        </div>
+                    </div>
+
+                    <!-- Seat Review Action Box -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div>
+                            <div class="font-extrabold text-sm text-slate-900">이 좌석에 앉아보셨나요?</div>
+                            <div class="text-xs text-slate-500">생생한 시야 후기를 남기고 포인트 받기</div>
+                        </div>
+                        <button onclick="openSeatReviewModal()" class="bg-gradient-to-r from-turf to-turf-light text-white text-xs font-extrabold px-3.5 py-2 rounded-xl shadow hover:brightness-110 transition flex items-center gap-1">
+                            <i class="fa-solid fa-pen-to-square"></i> 좌석 리뷰 (+500P)
+                        </button>
+                    </div>
+
+                </div>
+
+                <!-- --------------------------------------- -->
+                <!-- TAB 3: 지도 (INTERNAL & EXTERNAL MAPS)   -->
+                <!-- --------------------------------------- -->
+                <div id="tab-content-map" class="hidden space-y-4">
+                    
+                    <!-- Map View Toggle Switcher -->
+                    <div class="grid grid-cols-2 gap-2 bg-slate-200 p-1 rounded-xl text-xs font-bold text-center">
+                        <button id="btn-map-tab-in" onclick="switchMapView('in')" class="py-2 rounded-lg bg-white text-slate-900 shadow transition">
+                            🏟️ 야구장 내부 지도
+                        </button>
+                        <button id="btn-map-tab-out" onclick="switchMapView('out')" class="py-2 rounded-lg text-slate-600 hover:text-slate-900 transition">
+                            🗺️ 야구장 외부 지도
+                        </button>
+                    </div>
+
+                    <!-- Map Render Canvas/SVG Card -->
+                    <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex justify-between items-center mb-2 px-1">
+                            <span id="map-diagram-title" class="text-xs font-extrabold text-slate-800">야구장 내부 주요 편의시설 위치</span>
+                            <span class="text-[10px] text-slate-400">아이콘 터치시 상세안내</span>
+                        </div>
+
+                        <!-- Map Display Canvas Container -->
+                        <div id="stadium-map-view" class="w-full h-[280px] bg-slate-900 rounded-xl overflow-hidden relative border border-slate-200">
+                            <!-- Dynamic Map Layout -->
+                        </div>
+                    </div>
+
+                    <!-- Facility Cards List -->
+                    <div>
+                        <h4 class="font-extrabold text-sm text-slate-800 mb-2">주요 편의시설 안내</h4>
+                        <div id="map-facility-list" class="grid grid-cols-2 gap-2 text-xs">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- FLOATING AI CHATBOT SYSTEM                 -->
+    <!-- ========================================== -->
+    <!-- Floating Trigger Mascot Button -->
+    <button id="chatbot-trigger" onclick="toggleChatbot()" class="fixed bottom-5 right-5 z-40 bg-gradient-to-r from-clay to-amber-500 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition pulse-subtle">
+        <i class="fa-solid fa-robot text-2xl"></i>
+        <!-- Mascot Helmet Badge -->
+        <span class="absolute -top-1 -right-1 bg-turf text-white text-[9px] font-black px-1.5 py-0.5 rounded-full border border-white">AI</span>
+    </button>
+
+    <!-- Chatbot Window Drawer -->
+    <div id="chatbot-window" class="hidden fixed bottom-20 right-5 z-40 w-[90vw] max-w-sm h-[520px] bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden transition-all duration-300">
+        
+        <!-- Chatbot Header -->
+        <div class="bg-gradient-to-r from-kboNavy to-slate-900 text-white p-3.5 flex items-center justify-between border-b border-slate-800">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold shadow">
+                    <i class="fa-solid fa-baseball text-lg"></i>
+                </div>
+                <div>
+                    <div class="font-extrabold text-sm flex items-center gap-1.5">
+                        야구장 직관 생존 AI
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    </div>
+                    <div class="text-[10px] text-slate-300">오프라인 실시간 직관 헬퍼</div>
+                </div>
+            </div>
+            <button onclick="toggleChatbot()" class="text-slate-400 hover:text-white p-1">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <!-- FAQ Quick Chips Header -->
+        <div class="bg-slate-100 p-2.5 border-b border-slate-200 overflow-x-auto whitespace-nowrap space-x-1.5 scrollbar-none">
+            <span class="text-[11px] font-extrabold text-slate-500 mr-1">자주 묻는 질문:</span>
+            <button onclick="askPresetQuestion(1)" class="inline-block bg-white hover:bg-slate-200 text-slate-800 text-[11px] font-bold px-2.5 py-1 rounded-full border border-slate-300 transition">🍺 반입 금지 규정</button>
+            <button onclick="askPresetQuestion(2)" class="inline-block bg-white hover:bg-slate-200 text-slate-800 text-[11px] font-bold px-2.5 py-1 rounded-full border border-slate-300 transition">🌧️ 우천 취소 기준</button>
+            <button onclick="askPresetQuestion(3)" class="inline-block bg-white hover:bg-slate-200 text-slate-800 text-[11px] font-bold px-2.5 py-1 rounded-full border border-slate-300 transition">🧢 직관 필수 준비물</button>
+            <button onclick="askPresetQuestion(4)" class="inline-block bg-white hover:bg-slate-200 text-slate-800 text-[11px] font-bold px-2.5 py-1 rounded-full border border-slate-300 transition">🚀 야푸 웨이팅 팁</button>
+            <button onclick="askPresetQuestion(5)" class="inline-block bg-white hover:bg-slate-200 text-slate-800 text-[11px] font-bold px-2.5 py-1 rounded-full border border-slate-300 transition">🎫 초보 추천 좌석</button>
+        </div>
+
+        <!-- Chat Messages Container -->
+        <div id="chat-messages" class="flex-1 p-3.5 overflow-y-auto space-y-3 bg-slate-50 text-xs">
+            <!-- Initial Bot Welcome Message -->
+            <div class="flex gap-2">
+                <div class="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center shrink-0 font-bold text-xs">
+                    AI
+                </div>
+                <div class="bg-white border border-slate-200 text-slate-800 p-3 rounded-2xl rounded-tl-none max-w-[82%] shadow-sm leading-relaxed">
+                    안녕하세요! ⚾ <strong>야구장 직관생존 AI 챗봇</strong>입니다.<br>
+                    음식 대기 줄이는 꿀팁, 좌석 시야, 반입 규정 등 직관에 관한 모든 궁금증을 물어보세요!
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Input Form -->
+        <form onsubmit="handleChatSubmit(event)" class="p-2.5 bg-white border-t border-slate-200 flex gap-2">
+            <input type="text" id="chat-input" placeholder="야구장 궁금한 점을 적어주세요..." class="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-turf">
+            <button type="submit" class="bg-turf hover:bg-turf-light text-white px-3.5 py-2 rounded-xl text-xs font-bold transition">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </form>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- MODALS SECTION                             -->
+    <!-- ========================================== -->
+
+    <!-- Modal 1: Account Recovery (ID/PW) -->
+    <div id="modal-find" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-slate-200">
+            <div class="flex justify-between items-center mb-3">
+                <h3 id="find-modal-title" class="font-extrabold text-base text-slate-900">아이디 찾기</h3>
+                <button onclick="closeModal('modal-find')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <p class="text-xs text-slate-500 mb-3">가입 당시 등록한 전화번호를 입력하세요.</p>
+            <input type="tel" id="find-phone" placeholder="010-0000-0000" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs mb-3">
+            <button onclick="submitFindAccount()" class="w-full bg-turf text-white font-bold py-2.5 rounded-xl text-xs">확인</button>
+        </div>
+    </div>
+
+    <!-- Modal 2: Points & Wallet Modal -->
+    <div id="modal-points" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl text-center">
+            <div class="w-14 h-14 rounded-full bg-amber-100 text-gold flex items-center justify-center text-3xl mx-auto mb-3">
+                <i class="fa-solid fa-coins"></i>
+            </div>
+            <h3 class="font-extrabold text-lg text-slate-900">나의 직관 포인트</h3>
+            <div id="modal-points-val" class="text-3xl font-black text-amber-500 my-2">1,000 P</div>
+            <p class="text-xs text-slate-500 mb-4">음식점 리뷰, 좌석 리뷰, 앱 후기를 작성하면 건당 +500P가 적립됩니다!</p>
+            <div class="bg-slate-50 p-3 rounded-xl text-left text-xs space-y-1.5 mb-4 border border-slate-200">
+                <div class="flex justify-between"><span>음식점/좌석 리뷰 적립</span><span class="font-bold text-emerald-600">+500P</span></div>
+                <div class="flex justify-between"><span>야구장 음식점 할인 결제</span><span class="font-bold text-clay">사용 가능</span></div>
+            </div>
+            <button onclick="closeModal('modal-points')" class="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs">닫기</button>
+        </div>
+    </div>
+
+    <!-- Modal 3: Restaurant Detail & Review Modal -->
+    <div id="modal-food-detail" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <span id="food-modal-tag" class="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">내부 음식점</span>
+                    <h3 id="food-modal-name" class="font-black text-xl text-slate-900 mt-1">신전떡볶이</h3>
+                </div>
+                <button onclick="closeModal('modal-food-detail')" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <!-- Wait Time Tip Card -->
+            <div id="food-modal-tip" class="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-xl text-xs font-bold mb-4 flex items-start gap-2">
+                <i class="fa-solid fa-lightbulb text-amber-500 text-sm mt-0.5"></i>
+                <div>
+                    <div>대기 줄이는 꿀팁:</div>
+                    <div id="food-modal-tip-text" class="font-normal text-amber-800 mt-0.5">5회말 클리닝 타임 5분 전에 이동 추천</div>
+                </div>
+            </div>
+
+            <!-- Menu List -->
+            <div class="mb-4">
+                <h4 class="font-extrabold text-xs text-slate-700 mb-2">대표 메뉴 및 가격</h4>
+                <div id="food-modal-menu" class="space-y-2 text-xs">
+                    <!-- Dynamic Menu Items -->
+                </div>
+            </div>
+
+            <!-- Point Coupon Purchase Box -->
+            <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-3.5 rounded-2xl mb-4 flex items-center justify-between">
+                <div>
+                    <div class="font-bold text-xs">보유 포인트 할인 결제</div>
+                    <div class="text-[10px] text-slate-300">500P 당 500원 즉시 할인</div>
+                </div>
+                <button onclick="redeemFoodPoints()" class="bg-gold text-slate-900 hover:bg-amber-400 px-3 py-1.5 rounded-xl font-extrabold text-xs transition">
+                    포인트 사용하기
+                </button>
+            </div>
+
+            <!-- Food Review Submission & List -->
+            <div class="border-t border-slate-200 pt-3">
+                <h4 class="font-extrabold text-xs text-slate-800 mb-2">음식점 평점 & 리뷰 작성 (+500P)</h4>
+                <form onsubmit="submitFoodReview(event)" class="space-y-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-slate-600">별점:</span>
+                        <select id="food-review-star" class="text-xs border rounded px-2 py-1 bg-white font-bold text-amber-500">
+                            <option value="5">★★★★★ 5점</option>
+                            <option value="4">★★★★☆ 4점</option>
+                            <option value="3">★★★☆☆ 3점</option>
+                            <option value="2">★★☆☆☆ 2점</option>
+                            <option value="1">★☆☆☆☆ 1점</option>
+                        </select>
+                    </div>
+                    <textarea id="food-review-text" required placeholder="맛, 대기시간, 포장 만족도 등을 작성해 주세요." class="w-full text-xs p-2 border border-slate-300 rounded-lg outline-none h-16"></textarea>
+                    <button type="submit" class="w-full bg-turf text-white font-bold py-2 rounded-xl text-xs hover:bg-turf-light transition">
+                        리뷰 등록하고 500P 받기
+                    </button>
+                </form>
+
+                <!-- Reviews Feed -->
+                <div id="food-modal-reviews-list" class="space-y-2 text-xs max-h-36 overflow-y-auto">
+                    <!-- Dynamic Reviews -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 4: Seat Review Modal -->
+    <div id="modal-seat-review" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-extrabold text-base text-slate-900">좌석 리뷰 쓰기 (+500P)</h3>
+                <button onclick="closeModal('modal-seat-review')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="submitSeatReview(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">방문 날짜</label>
+                    <input type="date" id="seat-review-date" required class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">사용한 좌석 구역/열</label>
+                    <input type="text" id="seat-review-zone" required placeholder="예: 1루 응원지정석 204블록 5열" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">시야 별점</label>
+                    <select id="seat-review-star" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold text-amber-500 bg-white">
+                        <option value="5">★★★★★ (시야 완벽함)</option>
+                        <option value="4">★★★★☆ (양호함)</option>
+                        <option value="3">★★★☆☆ (보통)</option>
+                        <option value="2">★★☆☆☆ (기둥/가림막 있음)</option>
+                        <option value="1">★☆☆☆☆ (시야 방해 심함)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">상세 시야 리뷰</label>
+                    <textarea id="seat-review-text" required placeholder="그늘 여부, 응원 열기, 경기장 전경에 대해 작성해 주세요." class="w-full text-xs p-2.5 border border-slate-300 rounded-xl outline-none h-20"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-turf text-white font-bold py-2.5 rounded-xl text-xs shadow hover:bg-turf-light transition">
+                    작성 완료 (+500P 적립)
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 5: App General Review Modal -->
+    <div id="modal-app-review" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-extrabold text-base text-slate-900">앱 사용 후기 작성 (+500P)</h3>
+                <button onclick="closeModal('modal-app-review')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="submitAppReview(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">평점</label>
+                    <select id="app-review-star" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold text-amber-500 bg-white">
+                        <option value="5">★★★★★ 최고예요!</option>
+                        <option value="4">★★★★☆ 만족스러워요</option>
+                        <option value="3">★★★☆☆ 보통이에요</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">개선점 및 응원 한마디</label>
+                    <textarea id="app-review-text" required placeholder="야구장 직관생존 GUIDE 앱의 유용한 점이나 바라는 점을 남겨주세요." class="w-full text-xs p-2.5 border border-slate-300 rounded-xl outline-none h-24"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-clay text-white font-bold py-2.5 rounded-xl text-xs shadow hover:bg-clay-light transition">
+                    포인트 적립받기 (+500P)
+                </button>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- JAVASCRIPT APP LOGIC                       -->
+    <!-- ========================================== -->
+    <script>
+        /* GLOBAL STATE */
+        const state = {
+            currentUser: { name: '직관러', email: 'fan@kbo.com' },
+            points: 1000,
+            activeStadiumId: 'gocheok',
+            activeTab: 'food', // food | seat | map
+            foodLocationFilter: 'in', // in | out
+            mapViewType: 'in', // in | out
+            activeSeatFilters: new Set(),
+            currentSeatZone: '응원지정석 (1루)',
+            view360Angle: 0,
+            selectedFoodVendor: null
+        };
+
+        /* STADIUM DATA DEFINITION (9 KBO STADIUMS COVERING 10 TEAMS) */
+        const STADIUMS = [
+            {
+                id: 'jamsil',
+                name: '잠실종합운동장 야구장',
+                teams: 'LG 트윈스 / 두산 베어스',
+                city: '서울 송파구',
+                capacity: '23,750석',
+                bgGradient: 'from-blue-700 to-red-600',
+                food: [
+                    { id: 101, name: '잭슨피자 (내야 1층)', loc: 'in', menu: '퍼퍼로니 딥디쉬 (22,000원), 하와이안 피자 (20,000원)', rating: 4.8, tip: '경기 개시 40분 전 모바일 사전 주문 필수! 클리닝 타임 대기 30분 이상', reviews: ['도우가 쫄깃하고 맥주 안주로 최고입니다.'] },
+                    { id: 102, name: '명인만두 & 쫄면', loc: 'in', menu: '비빔쫄면 (7,500원), 고기만두 (6,000원)', rating: 4.6, tip: '3회 초 공격 때 사오면 대기 없이 빠르게 수령 가능', reviews: ['새콤달콤해서 여름에 진짜 잘 들어가요.'] },
+                    { id: 103, name: '잠실 새마을시장 깻잎닭강정', loc: 'out', menu: '깻잎 닭강정 대 (15,000원)', rating: 4.9, tip: '종합운동장역 9번 출구 가는 길 시장에서 포장해오면 3천원 절약', reviews: ['식어도 바삭하고 양이 정말 푸짐합니다.'] }
+                ],
+                seatZones: [
+                    { id: 'z1', name: '1루 응원지정석', shade: false, exit: true, cheer: true, family: false, rating: 4.9 },
+                    { id: 'z2', name: '3루 원정응원석', shade: false, exit: true, cheer: true, family: false, rating: 4.7 },
+                    { id: 'z3', name: '테이블석 (VIP)', shade: true, exit: true, cheer: false, family: true, rating: 5.0 },
+                    { id: 'z4', name: '외야 지정석', shade: false, exit: false, cheer: false, family: true, rating: 4.2 }
+                ]
+            },
+            {
+                id: 'gocheok',
+                name: '고척스카이돔',
+                teams: '키움 히어로즈',
+                city: '서울 구로구',
+                capacity: '16,000석',
+                bgGradient: 'from-amber-700 to-rose-900',
+                food: [
+                    { id: 201, name: '크림새우 (외야 2층)', loc: 'in', menu: '마라크림새우 (16,000원), 달콤크림새우 (15,000원)', rating: 4.9, tip: '경기 시작 1시간 전 입장 직후 외야 게이트 키오스크 줄서기 추천!', reviews: ['고척 필수 야푸! 새우가 큼직하고 소스가 진짜 맛있어요.'] },
+                    { id: 202, name: '알통떡강정', loc: 'in', menu: '알통 닭강정 (14,000원)', rating: 4.5, tip: '내야 C게이트 옆 매장이 훨씬 한산합니다.', reviews: ['떡도 쫄깃하고 간편하게 먹기 좋습니다.'] },
+                    { id: 203, name: '동양미래대 먹자골목 타코야끼', loc: 'out', menu: '오리지널 14알 (8,000원)', rating: 4.7, tip: '구일역 2번 출구 맞은편 골목에서 포장해 들어오면 꿀맛', reviews: ['가성비 대박이고 겉바속촉이에요.'] }
+                ],
+                seatZones: [
+                    { id: 'z1', name: '버건디석 (응원석)', shade: true, exit: true, cheer: true, family: false, rating: 4.8 },
+                    { id: 'z2', name: 'R.d-club 테이블석', shade: true, exit: true, cheer: false, family: true, rating: 5.0 },
+                    { id: 'z3', name: '다크버건디석', shade: true, exit: true, cheer: false, family: true, rating: 4.6 },
+                    { id: 'z4', name: '외야 하층 지정석', shade: true, exit: false, cheer: false, family: false, rating: 4.3 }
+                ]
+            },
+            {
+                id: 'ssg',
+                name: '인천SSG랜더스필드',
+                teams: 'SSG 랜더스',
+                city: '인천 미추홀구',
+                capacity: '23,000석',
+                bgGradient: 'from-red-600 to-slate-900',
+                food: [
+                    { id: 301, name: '크림새우 & 허니관자', loc: 'in', menu: '크림새우 (16,000원)', rating: 4.9, tip: '1루 1층 중앙 통로 매장은 줄이 길니 3루 측 매장 이용', reviews: ['랜필 시그니처 1위! 꼭 먹어야 합니다.'] },
+                    { id: 302, name: '노브랜드버거 랜더스필드점', loc: 'in', menu: '랜더스팩 (12,000원)', rating: 4.4, tip: '앱 사전주문(스마트오더) 이용시 바로 수령', reviews: ['가성비 좋고 포장 상태 깔끔합니다.'] },
+                    { id: 303, name: '문학경기장역 신포닭강정 팝업', loc: 'out', menu: '신포닭강정 중 (17,000원)', rating: 4.8, tip: '지하철역 출과 앞 포장 부스 활용', reviews: ['매콤해서 맥주랑 최상의 조합!'] }
+                ],
+                seatZones: [
+                    { id: 'z1', name: '응원지정석 (1루)', shade: false, exit: true, cheer: true, family: false, rating: 4.9 },
+                    { id: 'z2', name: '바비큐존 (외야)', shade: true, exit: true, cheer: false, family: true, rating: 5.0 },
+                    { id: 'z3', name: '노브랜드 테이블석', shade: true, exit: true, cheer: false, family: true, rating: 4.8 },
+                    { id: 'z4', name: '몰리스 그린존 (잔디석)', shade: false, exit: true, cheer: false, family: true, rating: 4.7 }
+                ]
+            },
+            {
+                id: 'kt',
+                name: '수원KT위즈파크',
+                teams: 'KT 위즈',
+                city: '수원 장안구',
+                capacity: '20,000석',
+                bgGradient: 'from-slate-800 to-rose-700',
+                food: [
+                    { id: 401, name: '진미통닭 위즈파크점', loc: 'in', menu: '후라이드 치킨 (19,000원)', rating: 4.9, tip: 'wizzap 앱으로 사전 예약 주문 필수! 현장 구매는 1시간 대기', reviews: ['수원 3대 통닭 맛 그대로 경기장에서 맛봄'] },
+                    { id: 402, name: '보영만두 & 쫄면', loc: 'in', menu: '군만두 (8,000원), 안매운쫄면 (8,000원)', rating: 4.9, tip: '군만두에 쫄면 싸서 먹는 조합 강력 추천', reviews: ['겉바속촉 군만두의 최고봉'] }
+                ],
+                seatZones: [
+                    { id: 'z1', name: '응원지정석 (1루)', shade: false, exit: true, cheer: true, family: false, rating: 4.7 },
+                    { id: 'z2', name: '지니존 (테이블석)', shade: true, exit: true, cheer: false, family: true, rating: 4.9 },
+                    { id: 'z3', name: '외야 잔디자유석', shade: false, exit: true, cheer: false, family: true, rating: 4.5 }
+                ]
+            },
+            {
+                id: 'hanwha',
+                name: '대전 한화생명 볼파크',
+                teams: '한화 이글스',
+                city: '대전 중구',
+                capacity: '12,000석',
+                bgGradient: 'from-orange-600 to-slate-900',
+                food: [
+                    { id: 501, name: '농심 가락국수', loc: 'in', menu: '열창 가락국수 (6,500원)', rating: 4.7, tip: '쌀쌀한 봄/가을 직관 때 국물요리로 최고', reviews: ['칼칼하고 따뜻해서 최고입니다.'] },
+                    { id: 502, name: '성심당 (외부 중앙로점)', loc: 'out', menu: '튀김소보로 (1,700원), 야키소바빵', rating: 5.0, tip: '경기 전 대전역이나 중앙로 본점에서 사전 구매 후 방문', reviews: ['대전 직관 필수 코스 성심당!'] }
+                ],
+                seatZones: [
+                    { id: 'z1', name: '1루 응원단석', shade: false, exit: true, cheer: true, family: false, rating: 4.8 },
+                    { id: 'z2', name: '페이코 테이블석', shade: true, exit: true, cheer: false, family: true, rating: 4.9 }
+                ]
+            },
+            {
+                id: 'kia',
+                name: '광주기아챔피언스필드',
+                teams: 'KIA 타이거즈',
+                city: '광주 북구',
+                capacity: '20,500석',
+                bgGradient: 'from-red-700 to-black',
+                food: [
+                    { id: 601, name: '마성의 떡볶이 & 튀김', loc: 'in', menu: '마성떡볶이 (5,500원)', rating: 4.6, tip: '3루 응원석 뒤편 매장이 속도 빠름', reviews: ['달콤매콤해서 중독성 있어요.'] },
+                    { id: 602, name: '광주 양동통닭 (외부)', loc: 'out', menu: '양동 시장 통닭 (20,000원)', rating: 4.9, tip: '경기장 오기 전 양동시장에서 미리 픽업', reviews: ['양이 어마어마하고 엄청 고소함'] }
+                ],
+                seatZones: [
+                    { id: 'z1', name: 'K9 응원석 (3루)', shade: true, exit: true, cheer: true, family: false, rating: 4.9 },
+                    { id: 'z2', name: '챔피언석 (포수뒷자리)', shade: true, exit: true, cheer: false, family: true, rating: 5.0 }
+                ]
+            },
+            {
+                id: 'samsung',
+                name: '대구삼성라이온즈파크',
+                teams: '삼성 라이온즈',
+                city: '대구 수성구',
+                capacity: '24,000석',
+                bgGradient: 'from-blue-600 to-sky-400',
+                food: [
+                    { id: 701, name: '땅땅치킨 라팍점', loc: 'in', menu: '허브순살 세트 (21,000원)', rating: 4.8, tip: '3루측 전용 키오스크 이용시 10분 수령', reviews: ['단짠단짠 허브순살 강력 추천'] },
+                    { id: 702, name: '대구 납작만두 & 떡볶이', loc: 'in', menu: '납작만두 (6,000원)', rating: 4.7, tip: '떡볶이 국물에 적셔 먹는 납작만두 추천', reviews: ['대구 특산물 야구장에서 맛보기'] }
+                ],
+                seatZones: [
+                    { id: 'z1', name: 'BLUE 존 (3루 응원석)', shade: true, exit: true, cheer: true, family: false, rating: 4.9 },
+                    { id: 'z2', name: '지니존 (VIP)', shade: true, exit: true, cheer: false, family: true, rating: 4.9 }
+                ]
+            },
+            {
+                id: 'lotte',
+                name: '사직야구장',
+                teams: '롯데 자이언츠',
+                city: '부산 동래구',
+                capacity: '22,990석',
+                bgGradient: 'from-navy-900 to-red-600',
+                food: [
+                    { id: 801, name: '33떡볶이 & 꼬마김밥', loc: 'in', menu: '쌀떡볶이 (6,000원), 꼬마김밥 (5,000원)', rating: 4.7, tip: '내야 1층 중앙 통로 매장', reviews: ['쫀득한 쌀떡이 아주 맛있습니다.'] },
+                    { id: 802, name: '동래할매파전 / 사직주문진막국수', loc: 'out', menu: '수육 & 막국수 (12,000원)', rating: 4.9, tip: '사직역 4번 출구 맛집 거리 사전 방문', reviews: ['직관 전 든든하게 먹기 완벽'] }
+                ],
+                seatZones: [
+                    { id: 'z1', name: '1루 응원단석', shade: false, exit: true, cheer: true, family: false, rating: 5.0 },
+                    { id: 'z2', name: 'G-FLEX 테이블석', shade: true, exit: true, cheer: false, family: true, rating: 4.8 }
+                ]
+            },
+            {
+                id: 'nc',
+                name: '창원NC파크',
+                teams: 'NC 다이노스',
+                city: '경남 창원시',
+                capacity: '17,891석',
+                bgGradient: 'from-blue-900 to-amber-600',
+                food: [
+                    { id: 901, name: '공룡 고인돌 닭다리', loc: 'in', menu: '훈제 훈제고인돌닭다리 (12,000원)', rating: 4.8, tip: '비주얼 대박! 사진 찍기 최고 야푸', reviews: ['만화에 나오는 고기 비주얼 짱맛'] },
+                    { id: 902, name: '알통 떡강정 NC점', loc: 'in', menu: '알통 강정 (14,000원)', rating: 4.6, tip: '콘코스 2층 매장 한산함', reviews: ['양념이 입에 짝짝 붙어요.'] }
+                ],
+                seatZones: [
+                    { id: 'z1', name: '응원석 (1루)', shade: false, exit: true, cheer: true, family: false, rating: 4.9 },
+                    { id: 'z2', name: '프리미엄 테이블석', shade: true, exit: true, cheer: false, family: true, rating: 5.0 }
+                ]
+            }
+        ];
+
+        /* INITIALIZATION & NAVIGATION */
+        window.onload = function() {
+            renderStadiumGrid();
+            init360Canvas();
+            // Default active stadium
+            selectStadium('gocheok');
+        };
+
+        function showScreen(screenId) {
+            document.getElementById('screen-auth').classList.add('hidden');
+            document.getElementById('screen-home').classList.add('hidden');
+            document.getElementById('screen-stadium').classList.add('hidden');
+            
+            document.getElementById(screenId).classList.remove('hidden');
+
+            const header = document.getElementById('global-header');
+            if (screenId === 'screen-auth') {
+                header.classList.add('hidden');
+            } else {
+                header.classList.remove('hidden');
+            }
+        }
+
+        function toggleAuthForm(mode) {
+            const loginBox = document.getElementById('form-login-container');
+            const signupBox = document.getElementById('form-signup-container');
+            if (mode === 'signup') {
+                loginBox.classList.add('hidden');
+                signupBox.classList.remove('hidden');
+            } else {
+                signupBox.classList.add('hidden');
+                loginBox.classList.remove('hidden');
+            }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            state.currentUser.email = email;
+            state.currentUser.name = email.split('@')[0] || '직관러';
+            document.getElementById('user-welcome').innerText = `반갑습니다, ${state.currentUser.name}님! 👋`;
+            showToast('로그인되었습니다. (+1,000P 보유중)');
+            showScreen('screen-home');
+        }
+
+        function guestLogin() {
+            state.currentUser.name = '체험 직관러';
+            document.getElementById('user-welcome').innerText = `반갑습니다, ${state.currentUser.name}님! 👋`;
+            showToast('체험 계정으로 입장했습니다.');
+            showScreen('screen-home');
+        }
+
+        function handleSignup(e) {
+            e.preventDefault();
+            const pw1 = document.getElementById('signup-pw').value;
+            const pw2 = document.getElementById('signup-pw-confirm').value;
+            const name = document.getElementById('signup-name').value;
+
+            if (pw1 !== pw2) {
+                showToast('비밀번호가 일치하지 않습니다.', 'error');
+                return;
+            }
+
+            state.currentUser.name = name;
+            addPoints(500, '신규 회원가입 축하');
+            document.getElementById('user-welcome').innerText = `반갑습니다, ${name}님! 👋`;
+            showToast('회원가입이 완료되었습니다! 1,500P 지급 완료');
+            showScreen('screen-home');
+        }
+
+        function openFindModal(type) {
+            document.getElementById('find-modal-title').innerText = type === 'id' ? '아이디 찾기' : '비밀번호 재설정';
+            document.getElementById('modal-find').classList.remove('hidden');
+        }
+
+        function submitFindAccount() {
+            closeModal('modal-find');
+            showToast('입력하신 번호로 안내 문자가 발송되었습니다.');
+        }
+
+        function goToHome() {
+            showScreen('screen-home');
+        }
+
+        function scrollToStadiumList() {
+            const el = document.getElementById('stadium-list-anchor');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        /* RENDER STADIUM GRID IN HOME SCREEN */
+        function renderStadiumGrid() {
+            const container = document.getElementById('stadium-grid');
+            container.innerHTML = STADIUMS.map(stadium => `
+                <div onclick="selectStadium('${stadium.id}')" class="bg-white rounded-2xl p-4 shadow-md border border-slate-200 hover:shadow-xl hover:border-turf/50 cursor-pointer transition transform hover:-translate-y-1 flex flex-col justify-between group">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-black bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">${stadium.city}</span>
+                            <span class="text-[10px] font-bold text-turf"><i class="fa-solid fa-users"></i> ${stadium.capacity}</span>
+                        </div>
+                        <h4 class="font-extrabold text-slate-900 text-base group-hover:text-turf transition">${stadium.name}</h4>
+                        <p class="text-xs text-slate-500 font-bold mt-1"><i class="fa-solid fa-shield-halved text-clay"></i> ${stadium.teams}</p>
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-black text-slate-700 group-hover:text-turf">
+                        <span>상세 가이드 보기</span>
+                        <i class="fa-solid fa-arrow-right text-xs transition group-hover:translate-x-1"></i>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        /* STADIUM SELECTION & TAB MANAGEMENT */
+        function selectStadium(stadiumId) {
+            const stadium = STADIUMS.find(s => s.id === stadiumId);
+            if (!stadium) return;
+
+            state.activeStadiumId = stadiumId;
+            document.getElementById('active-stadium-title').innerText = stadium.name;
+            document.getElementById('active-stadium-team').innerText = stadium.teams;
+
+            showScreen('screen-stadium');
+            switchStadiumTab('food');
+        }
+
+        function switchStadiumTab(tabName) {
+            state.activeTab = tabName;
+
+            // Highlight Tab Buttons
+            ['food', 'seat', 'map'].forEach(t => {
+                const btn = document.getElementById(`tab-btn-${t}`);
+                const content = document.getElementById(`tab-content-${t}`);
+                if (t === tabName) {
+                    btn.className = "py-2 rounded-lg transition text-white bg-turf shadow font-extrabold";
+                    content.classList.remove('hidden');
+                } else {
+                    btn.className = "py-2 rounded-lg transition text-slate-600 hover:text-slate-900 font-extrabold";
+                    content.classList.add('hidden');
+                }
+            });
+
+            // Trigger specific tab renders
+            if (tabName === 'food') {
+                renderFoodTab();
+            } else if (tabName === 'seat') {
+                renderSeatTab();
+            } else if (tabName === 'map') {
+                renderMapTab();
+            }
+        }
+
+        /* ========================================== */
+        /* TAB 1: FOOD LOGIC                          */
+        /* ========================================== */
+        function renderFoodTab() {
+            const stadium = STADIUMS.find(s => s.id === state.activeStadiumId);
+            if (!stadium) return;
+
+            // Render Ranking Top 5
+            const rankingList = document.getElementById('food-ranking-list');
+            const sorted = [...stadium.food].sort((a, b) => b.rating - a.rating);
+            rankingList.innerHTML = sorted.map((item, idx) => `
+                <div onclick="openFoodDetailModal(${item.id})" class="flex justify-between items-center bg-white/10 hover:bg-white/20 p-2 rounded-lg cursor-pointer transition">
+                    <span class="font-bold flex items-center gap-2">
+                        <span class="w-4 h-4 rounded-full bg-white text-slate-900 font-black text-[10px] flex items-center justify-center">${idx+1}</span>
+                        ${item.name}
+                    </span>
+                    <span class="font-bold text-amber-200">★ ${item.rating}</span>
+                </div>
+            `).join('');
+
+            filterFoodLocation(state.foodLocationFilter);
+        }
+
+        function filterFoodLocation(loc) {
+            state.foodLocationFilter = loc;
+            const btnIn = document.getElementById('btn-food-filter-in');
+            const btnOut = document.getElementById('btn-food-filter-out');
+
+            if (loc === 'in') {
+                btnIn.className = "px-4 py-1.5 rounded-xl font-bold text-xs bg-slate-900 text-white transition shadow";
+                btnOut.className = "px-4 py-1.5 rounded-xl font-bold text-xs bg-slate-200 text-slate-700 hover:bg-slate-300 transition";
+            } else {
+                btnOut.className = "px-4 py-1.5 rounded-xl font-bold text-xs bg-slate-900 text-white transition shadow";
+                btnIn.className = "px-4 py-1.5 rounded-xl font-bold text-xs bg-slate-200 text-slate-700 hover:bg-slate-300 transition";
+            }
+
+            const stadium = STADIUMS.find(s => s.id === state.activeStadiumId);
+            const container = document.getElementById('food-vendors-container');
+            const items = stadium.food.filter(f => f.loc === loc);
+
+            if (items.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 text-xs py-8">해당하는 음식점이 아직 등록되지 않았습니다.</div>`;
+                return;
+            }
+
+            container.innerHTML = items.map(item => `
+                <div onclick="openFoodDetailModal(${item.id})" class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md cursor-pointer transition">
+                    <div class="flex justify-between items-start">
+                        <h4 class="font-black text-sm text-slate-900">${item.name}</h4>
+                        <span class="text-xs font-extrabold text-amber-500">★ ${item.rating}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 mt-1"><i class="fa-solid fa-utensils text-slate-400"></i> ${item.menu}</p>
+                    <div class="mt-2.5 bg-amber-50 border border-amber-200 text-amber-900 px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5">
+                        <i class="fa-solid fa-bolt text-amber-500"></i> ${item.tip}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openFoodDetailModal(foodId) {
+            const stadium = STADIUMS.find(s => s.id === state.activeStadiumId);
+            const food = stadium.food.find(f => f.id === foodId);
+            if (!food) return;
+
+            state.selectedFoodVendor = food;
+            document.getElementById('food-modal-name').innerText = food.name;
+            document.getElementById('food-modal-tag').innerText = food.loc === 'in' ? '야구장 내부 음식점' : '야구장 외부 음식점';
+            document.getElementById('food-modal-tip-text').innerText = food.tip;
+
+            // Render menus
+            const menuContainer = document.getElementById('food-modal-menu');
+            const menuArray = food.menu.split(',');
+            menuContainer.innerHTML = menuArray.map(m => `
+                <div class="flex justify-between bg-slate-50 p-2 rounded-lg font-bold text-slate-800 border border-slate-100">
+                    <span>${m.trim()}</span>
+                    <span class="text-turf">주문 가능</span>
+                </div>
+            `).join('');
+
+            // Render reviews
+            renderFoodReviews(food);
+
+            document.getElementById('modal-food-detail').classList.remove('hidden');
+        }
+
+        function renderFoodReviews(food) {
+            const list = document.getElementById('food-modal-reviews-list');
+            if (!food.reviews || food.reviews.length === 0) {
+                list.innerHTML = `<div class="text-slate-400 text-[11px] text-center">첫 리뷰를 작성하고 500P를 받아가세요!</div>`;
+                return;
+            }
+            list.innerHTML = food.reviews.map(r => `
+                <div class="bg-white p-2 rounded-lg border border-slate-200 text-[11px]">
+                    <div class="font-bold text-slate-700 flex justify-between">
+                        <span>익명 직관러</span>
+                        <span class="text-amber-500">★★★★★</span>
+                    </div>
+                    <p class="text-slate-600 mt-0.5">${r}</p>
+                </div>
+            `).join('');
+        }
+
+        function submitFoodReview(e) {
+            e.preventDefault();
+            const text = document.getElementById('food-review-text').value;
+            if (!state.selectedFoodVendor) return;
+
+            if (!state.selectedFoodVendor.reviews) state.selectedFoodVendor.reviews = [];
+            state.selectedFoodVendor.reviews.unshift(text);
+
+            document.getElementById('food-review-text').value = '';
+            renderFoodReviews(state.selectedFoodVendor);
+
+            addPoints(500, '음식점 리뷰 작성');
+            showToast('음식점 리뷰가 등록되었습니다! (+500P 적립)');
+        }
+
+        function redeemFoodPoints() {
+            if (state.points < 500) {
+                showToast('포인트가 부족합니다. (최소 500P 필요)', 'error');
+                return;
+            }
+            state.points -= 500;
+            updatePointsDisplay();
+            showToast('500P 할인 쿠폰이 적용되었습니다!');
+        }
+
+        /* ========================================== */
+        /* TAB 2: SEATS & 360 PANORAMA LOGIC           */
+        /* ========================================== */
+        function renderSeatTab() {
+            renderSeatSVG();
+            draw360Panorama();
+        }
+
+        function renderSeatSVG() {
+            const stadium = STADIUMS.find(s => s.id === state.activeStadiumId);
+            const container = document.getElementById('seat-svg-container');
+
+            // Interactive SVG Diamond and Seating Sections
+            container.innerHTML = `
+                <svg viewBox="0 0 400 320" class="w-full max-w-sm">
+                    <!-- Baseball Diamond Field -->
+                    <polygon points="200,240 130,170 200,100 270,170" fill="#2e7d32" stroke="#ffffff" stroke-width="2"/>
+                    <path d="M 130,170 Q 200,70 270,170" fill="#e65100" opacity="0.3"/>
+                    
+                    <!-- Base Bases -->
+                    <rect x="195" y="235" width="10" height="10" fill="#ffffff" transform="rotate(45 200 240)"/>
+                    <rect x="125" y="165" width="10" height="10" fill="#ffffff" transform="rotate(45 130 170)"/>
+                    <rect x="265" y="165" width="10" height="10" fill="#ffffff" transform="rotate(45 270 170)"/>
+                    <rect x="195" y="95" width="10" height="10" fill="#ffffff" transform="rotate(45 200 100)"/>
+
+                    <!-- Zone 1: 1루 응원석 -->
+                    <path id="svg-z1" onclick="selectSeatZone('1루 응원지정석')" d="M 280,180 C 310,210 290,260 220,270 L 210,245 C 250,240 270,200 260,180 Z" 
+                        fill="${isZoneHighlighted('cheer') ? '#ef4444' : '#3b82f6'}" class="cursor-pointer hover:opacity-80 transition" stroke="#fff" stroke-width="1.5"/>
+                    <text x="270" y="230" fill="#fff" font-size="10" font-weight="bold" pointer-events="none">1루 응원석</text>
+
+                    <!-- Zone 2: 3루 원정 응원석 -->
+                    <path id="svg-z2" onclick="selectSeatZone('3루 원정응원석')" d="M 120,180 C 90,210 110,260 180,270 L 190,245 C 150,240 130,200 140,180 Z" 
+                        fill="${isZoneHighlighted('cheer') ? '#ef4444' : '#3b82f6'}" class="cursor-pointer hover:opacity-80 transition" stroke="#fff" stroke-width="1.5"/>
+                    <text x="110" y="230" fill="#fff" font-size="10" font-weight="bold" pointer-events="none">3루 응원석</text>
+
+                    <!-- Zone 3: 포수 뒤 VIP / 테이블석 -->
+                    <path id="svg-z3" onclick="selectSeatZone('테이블석 (VIP)')" d="M 175,275 C 200,295 225,295 225,275 L 210,250 C 200,255 200,255 190,250 Z" 
+                        fill="${isZoneHighlighted('family') || isZoneHighlighted('shade') ? '#10b981' : '#8b5cf6'}" class="cursor-pointer hover:opacity-80 transition" stroke="#fff" stroke-width="1.5"/>
+                    <text x="180" y="285" fill="#fff" font-size="9" font-weight="bold" pointer-events="none">테이블석</text>
+
+                    <!-- Zone 4: 외야 지정석 -->
+                    <path id="svg-z4" onclick="selectSeatZone('외야 지정석')" d="M 100,140 Q 200,40 300,140 L 275,155 Q 200,75 125,155 Z" 
+                        fill="${isZoneHighlighted('exit') ? '#f59e0b' : '#64748b'}" class="cursor-pointer hover:opacity-80 transition" stroke="#fff" stroke-width="1.5"/>
+                    <text x="180" y="80" fill="#fff" font-size="11" font-weight="bold" pointer-events="none">외야 자유석</text>
+                </svg>
+            `;
+        }
+
+        function isZoneHighlighted(type) {
+            return state.activeSeatFilters.has(type);
+        }
+
+        function toggleSeatFilter(filterType) {
+            if (state.activeSeatFilters.has(filterType)) {
+                state.activeSeatFilters.delete(filterType);
+            } else {
+                state.activeSeatFilters.add(filterType);
+            }
+
+            // Update Filter Button UI
+            ['shade', 'exit', 'cheer', 'family'].forEach(f => {
+                const btn = document.getElementById(`filter-${f}`);
+                if (state.activeSeatFilters.has(f)) {
+                    btn.className = "px-2.5 py-1.5 rounded-xl text-xs font-bold border border-turf bg-turf text-white shadow transition";
+                } else {
+                    btn.className = "px-2.5 py-1.5 rounded-xl text-xs font-bold border border-slate-300 text-slate-700 bg-slate-50 hover:bg-slate-100 transition";
+                }
+            });
+
+            const notice = document.getElementById('seat-filter-notice');
+            if (state.activeSeatFilters.size > 0) {
+                notice.classList.remove('hidden');
+            } else {
+                notice.classList.add('hidden');
+            }
+
+            renderSeatSVG();
+        }
+
+        function resetSeatFilters() {
+            state.activeSeatFilters.clear();
+            toggleSeatFilter('');
+        }
+
+        function selectSeatZone(zoneName) {
+            state.currentSeatZone = zoneName;
+            document.getElementById('view360-zone-title').innerText = zoneName;
+            showToast(`${zoneName} 시야로 전환되었습니다.`);
+            draw360Panorama();
+        }
+
+        /* 360 DEGREE PANORAMA CANVAS RENDERER */
+        let isDragging360 = false;
+        let startX360 = 0;
+
+        function init360Canvas() {
+            const canvas = document.getElementById('canvas-360');
+            if (!canvas) return;
+
+            // Touch & Mouse Drag Handlers for 360 Rotation
+            const startDrag = (x) => {
+                isDragging360 = true;
+                startX360 = x;
+            };
+            const moveDrag = (x) => {
+                if (!isDragging360) return;
+                const delta = x - startX360;
+                startX360 = x;
+                state.view360Angle = (state.view360Angle + delta * 0.5 + 360) % 360;
+                document.getElementById('slider-360').value = Math.round(state.view360Angle);
+                document.getElementById('slider-angle-label').innerText = `${Math.round(state.view360Angle)}°`;
+                draw360Panorama();
+            };
+            const stopDrag = () => { isDragging360 = false; };
+
+            canvas.addEventListener('mousedown', (e) => startDrag(e.clientX));
+            window.addEventListener('mousemove', (e) => moveDrag(e.clientX));
+            window.addEventListener('mouseup', stopDrag);
+
+            canvas.addEventListener('touchstart', (e) => startDrag(e.touches[0].clientX));
+            window.addEventListener('touchmove', (e) => moveDrag(e.touches[0].clientX));
+            window.addEventListener('touchend', stopDrag);
+        }
+
+        function update360Angle(val) {
+            state.view360Angle = parseFloat(val);
+            document.getElementById('slider-angle-label').innerText = `${Math.round(val)}°`;
+            draw360Panorama();
+        }
+
+        function draw360Panorama() {
+            const canvas = document.getElementById('canvas-360');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            // Set dynamic canvas dimension based on parent width
+            canvas.width = canvas.parentElement.clientWidth || 360;
+            canvas.height = canvas.parentElement.clientHeight || 220;
+
+            const w = canvas.width;
+            const h = canvas.height;
+            const angleRad = (state.view360Angle * Math.PI) / 180;
+
+            // Clear
+            ctx.clearRect(0, 0, w, h);
+
+            // Sky Gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.5);
+            skyGrad.addColorStop(0, '#0a192f');
+            skyGrad.addColorStop(1, '#1e293b');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, w, h * 0.5);
+
+            // Field Turf Gradient
+            const turfGrad = ctx.createLinearGradient(0, h * 0.5, 0, h);
+            turfGrad.addColorStop(0, '#15803d');
+            turfGrad.addColorStop(1, '#14532d');
+            ctx.fillStyle = turfGrad;
+            ctx.fillRect(0, h * 0.5, w, h * 0.5);
+
+            // Dynamic Baseball Diamond Projection based on rotation angle
+            const centerX = w / 2 + Math.sin(angleRad) * (w * 0.4);
+            const centerY = h * 0.65;
+
+            // Infield Dirt Oval
+            ctx.beginPath();
+            ctx.ellipse(centerX, centerY, w * 0.35, h * 0.15, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#c2410c';
+            ctx.fill();
+
+            // Bases Lines
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY + 20);
+            ctx.lineTo(centerX - 50, centerY - 10);
+            ctx.lineTo(centerX, centerY - 30);
+            ctx.lineTo(centerX + 50, centerY - 10);
+            ctx.closePath();
+            ctx.strokeStyle = '#ffffff';
+            ctx.strokeWidth = 2;
+            ctx.stroke();
+
+            // Scoreboard in Background
+            const sbX = w / 2 - Math.sin(angleRad) * (w * 0.6) - 40;
+            ctx.fillStyle = '#0284c7';
+            ctx.fillRect(sbX, h * 0.25, 80, 35);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 10px sans-serif';
+            ctx.fillText('KBO 2026', sbX + 15, h * 0.35);
+
+            // Stadium Roof / Dome arch overlay if Gocheok
+            if (state.activeStadiumId === 'gocheok') {
+                ctx.beginPath();
+                ctx.arc(w / 2, -50, w * 0.65, 0, Math.PI);
+                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                ctx.lineWidth = 15;
+                ctx.stroke();
+            }
+
+            // Stand Fence & Crowd
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(0, h * 0.48, w, 8);
+        }
+
+        function openSeatReviewModal() {
+            document.getElementById('seat-review-date').valueAsDate = new Date();
+            document.getElementById('modal-seat-review').classList.remove('hidden');
+        }
+
+        function submitSeatReview(e) {
+            e.preventDefault();
+            closeModal('modal-seat-review');
+            addPoints(500, '좌석 리뷰 작성');
+            showToast('좌석 시야 후기가 등록되었습니다! (+500P 적립)');
+        }
+
+        /* ========================================== */
+        /* TAB 3: MAP LOGIC                           */
+        /* ========================================== */
+        function renderMapTab() {
+            switchMapView(state.mapViewType);
+        }
+
+        function switchMapView(type) {
+            state.mapViewType = type;
+            const btnIn = document.getElementById('btn-map-tab-in');
+            const btnOut = document.getElementById('btn-map-tab-out');
+
+            if (type === 'in') {
+                btnIn.className = "py-2 rounded-lg bg-white text-slate-900 shadow transition font-bold";
+                btnOut.className = "py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold";
+                document.getElementById('map-diagram-title').innerText = "야구장 내부 주요 편의시설 위치";
+            } else {
+                btnOut.className = "py-2 rounded-lg bg-white text-slate-900 shadow transition font-bold";
+                btnIn.className = "py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold";
+                document.getElementById('map-diagram-title').innerText = "야구장 외부 지상/교통/주차 위치";
+            }
+
+            renderMapContent(type);
+        }
+
+        function renderMapContent(type) {
+            const mapContainer = document.getElementById('stadium-map-view');
+            const listContainer = document.getElementById('map-facility-list');
+
+            if (type === 'in') {
+                mapContainer.innerHTML = `
+                    <div class="absolute inset-0 bg-slate-900 flex items-center justify-center p-4">
+                        <svg viewBox="0 0 400 280" class="w-full h-full">
+                            <!-- Concourse Ring -->
+                            <ellipse cx="200" cy="140" rx="160" ry="110" fill="none" stroke="#334155" stroke-width="30"/>
+                            
+                            <!-- Pins -->
+                            <g transform="translate(100, 100)" class="cursor-pointer" onclick="showToast('게이트 A: 내야 1층 입구')">
+                                <circle cx="0" cy="0" r="14" fill="#ef4444"/>
+                                <text x="-5" y="4" fill="#fff" font-size="10" font-weight="bold">🚪</text>
+                            </g>
+                            <g transform="translate(300, 100)" class="cursor-pointer" onclick="showToast('의무실: 3루측 통로 위치')">
+                                <circle cx="0" cy="0" r="14" fill="#10b981"/>
+                                <text x="-5" y="4" fill="#fff" font-size="10" font-weight="bold">🏥</text>
+                            </g>
+                            <g transform="translate(200, 230)" class="cursor-pointer" onclick="showToast('화장실/수유실: 중앙 콘코스')">
+                                <circle cx="0" cy="0" r="14" fill="#3b82f6"/>
+                                <text x="-5" y="4" fill="#fff" font-size="10" font-weight="bold">🚻</text>
+                            </g>
+                            <g transform="translate(200, 50)" class="cursor-pointer" onclick="showToast('굿즈샵: 외야 공식 스토어')">
+                                <circle cx="0" cy="0" r="14" fill="#f59e0b"/>
+                                <text x="-5" y="4" fill="#fff" font-size="10" font-weight="bold">🧢</text>
+                            </g>
+                        </svg>
+                    </div>
+                `;
+
+                listContainer.innerHTML = `
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center font-bold text-sm">🚪</div>
+                        <div><div class="font-bold text-slate-800">주 출입 게이트</div><div class="text-[10px] text-slate-500">1, 3루 내외야 게이트</div></div>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm">🏥</div>
+                        <div><div class="font-bold text-slate-800">의무실 / 구급차</div><div class="text-[10px] text-slate-500">응급처치 3루 통로</div></div>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">🚻</div>
+                        <div><div class="font-bold text-slate-800">화장실 & 수유실</div><div class="text-[10px] text-slate-500">각 층 콘코스 배치</div></div>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-sm">🧢</div>
+                        <div><div class="font-bold text-slate-800">공식 구단 굿즈샵</div><div class="text-[10px] text-slate-500">유니폼 및 응원봉</div></div>
+                    </div>
+                `;
+            } else {
+                mapContainer.innerHTML = `
+                    <div class="absolute inset-0 bg-slate-900 flex items-center justify-center p-4">
+                        <svg viewBox="0 0 400 280" class="w-full h-full">
+                            <rect x="50" y="50" width="300" height="180" rx="20" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+                            
+                            <g transform="translate(90, 80)" class="cursor-pointer" onclick="showToast('지하철역 출구: 2번 출구 도보 3분')">
+                                <circle cx="0" cy="0" r="14" fill="#8b5cf6"/>
+                                <text x="-5" y="4" fill="#fff" font-size="10" font-weight="bold">🚇</text>
+                            </g>
+                            <g transform="translate(310, 80)" class="cursor-pointer" onclick="showToast('중앙 매표소: 현장 예매 및 티켓 수령')">
+                                <circle cx="0" cy="0" r="14" fill="#ec4899"/>
+                                <text x="-5" y="4" fill="#fff" font-size="10" font-weight="bold">🎫</text>
+                            </g>
+                            <g transform="translate(200, 210)" class="cursor-pointer" onclick="showToast('지상 주차장: 만차 시 부설 주차장 이용')">
+                                <circle cx="0" cy="0" r="14" fill="#06b6d4"/>
+                                <text x="-5" y="4" fill="#fff" font-size="10" font-weight="bold">🅿️</text>
+                            </g>
+                        </svg>
+                    </div>
+                `;
+
+                listContainer.innerHTML = `
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-sm">🚇</div>
+                        <div><div class="font-bold text-slate-800">지하철역 출구</div><div class="text-[10px] text-slate-500">도보 3분 연결 통로</div></div>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-pink-100 text-pink-600 flex items-center justify-center font-bold text-sm">🎫</div>
+                        <div><div class="font-bold text-slate-800">무인 발권기 / 매표소</div><div class="text-[10px] text-slate-500">지상 중앙 광장</div></div>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-cyan-100 text-cyan-600 flex items-center justify-center font-bold text-sm">🅿️</div>
+                        <div><div class="font-bold text-slate-800">구장 전용 주차장</div><div class="text-[10px] text-slate-500">경기 2시간 전 도착 권장</div></div>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-sm">🍔</div>
+                        <div><div class="font-bold text-slate-800">외부 먹자골목</div><div class="text-[10px] text-slate-500">인근 포장 맛집 거리</div></div>
+                    </div>
+                `;
+            }
+        }
+
+        /* ========================================== */
+        /* FLOATING AI CHATBOT SYSTEM                 */
+        /* ========================================== */
+        function toggleChatbot() {
+            const win = document.getElementById('chatbot-window');
+            win.classList.toggle('hidden');
+        }
+
+        function askPresetQuestion(num) {
+            const questions = {
+                1: "반입 금지 물품과 캔맥주/페트병 규정이 어떻게 되나요?",
+                2: "비 올 때 우천 취소 기준과 환불 방법이 궁금해요!",
+                3: "여름철 직관 필수 준비물 추천해 주세요!",
+                4: "가장 줄 안 서고 야푸(야구장 푸드) 먹는 꿀팁 알려줘!",
+                5: "초보자인데 어느 좌석을 예매하는 게 좋을까요?"
+            };
+            const text = questions[num];
+            if (text) {
+                appendChatMessage('user', text);
+                generateBotResponse(text);
+            }
+        }
+
+        function handleChatSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            appendChatMessage('user', text);
+            input.value = '';
+            generateBotResponse(text);
+        }
+
+        function appendChatMessage(sender, text) {
+            const container = document.getElementById('chat-messages');
+            const isUser = sender === 'user';
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `flex gap-2 ${isUser ? 'justify-end' : ''}`;
+
+            msgDiv.innerHTML = isUser ? `
+                <div class="bg-turf text-white p-3 rounded-2xl rounded-tr-none max-w-[82%] shadow-sm leading-relaxed">
+                    ${text}
+                </div>
+            ` : `
+                <div class="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center shrink-0 font-bold text-xs">
+                    AI
+                </div>
+                <div class="bg-white border border-slate-200 text-slate-800 p-3 rounded-2xl rounded-tl-none max-w-[82%] shadow-sm leading-relaxed">
+                    ${text}
+                </div>
+            `;
+
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function generateBotResponse(userMsg) {
+            let botReply = "";
+
+            if (userMsg.includes("반입") || userMsg.includes("캔") || userMsg.includes("맥주") || userMsg.includes("소주")) {
+                botReply = "🍺 <strong>KBO 관람객 반입 규정 안내</strong><br>• 1인당 가방 1개(45x45x20cm) + 쇼핑백 1개 이하 반입 가능합니다.<br>• 캔, 유리병, 1L 초과 페트병, 6도 이상 알코올 음료는 <strong>반입 불가</strong>입니다.<br>• 미개봉 1L 이하 페트병 음료는 1인당 1병 반입 가능합니다!";
+            } else if (userMsg.includes("우천") || userMsg.includes("비") || userMsg.includes("취소") || userMsg.includes("환불")) {
+                botReply = "🌧️ <strong>우천 취소 & 환불 규정</strong><br>• 경기 시작 3시간 전~경기 중 결정됩니다.<br>• <strong>5회 정식 경기 이전</strong> 취소 시 100% 자동 카드 환불 처리됩니다.<br>• 5회말이 지난 후 취소되면 정식 경기로 인정되어 환불되지 않습니다.";
+            } else if (userMsg.includes("준비물") || userMsg.includes("여름")) {
+                botReply = "🧢 <strong>여름 직관 필수 준비물 Checklist</strong><br>1. 손선풍기 & 보조배터리<br>2. 얼음물 페트병 (1L 이하)<br>3. 자외선 차단제 & 선글라스/모자<br>4. 물티슈 (음식 먹기 전후 필수!)";
+            } else if (userMsg.includes("꿀팁") || userMsg.includes("줄") || userMsg.includes("푸드") || userMsg.includes("야푸")) {
+                botReply = "🚀 <strong>야푸 대기 줄이는 생존 팁</strong><br>1. 경기 시작 1시간 전 입장 후 사전 픽업!<br>2. 5회말 클리닝 타임 5분 전에 미리 이동하기<br>3. 구장 전용 스마트오더 앱(wizzap 등) 활용하기";
+            } else if (userMsg.includes("좌석") || userMsg.includes("추천") || userMsg.includes("초보")) {
+                botReply = "🎫 <strong>초보자 추천 좌석</strong><br>• 신나게 응원하고 싶다 ➡️ <strong>1루/3루 응원지정석</strong><br>• 편하게 먹으면서 관람 ➡️ <strong>테이블석(VIP)</strong><br>• 경기 전체 구조 감상 ➡️ <strong>중앙 중앙석 또는 2층 내야석</strong>";
+            } else {
+                const stadium = STADIUMS.find(s => s.id === state.activeStadiumId);
+                botReply = `⚾ 현재 선택하신 <strong>${stadium ? stadium.name : '야구장'}</strong> 가이드 정보입니다!<br>먹거리 탭에서 인기 랭킹 음식과 대기 줄이는 꿀팁을 확인하시거나, 좌석 탭에서 360도 시야를 먼저 확인해 보세요!`;
+            }
+
+            setTimeout(() => {
+                appendChatMessage('bot', botReply);
+            }, 400);
+        }
+
+        /* ========================================== */
+        /* UTILITY & POINT WALLET FUNCTIONS           */
+        /* ========================================== */
+        function addPoints(amount, reason) {
+            state.points += amount;
+            updatePointsDisplay();
+        }
+
+        function updatePointsDisplay() {
+            document.getElementById('user-points').innerText = `${state.points.toLocaleString()} P`;
+            document.getElementById('modal-points-val').innerText = `${state.points.toLocaleString()} P`;
+        }
+
+        function openPointsModal() {
+            document.getElementById('modal-points').classList.remove('hidden');
+        }
+
+        function openAppReviewModal() {
+            document.getElementById('modal-app-review').classList.remove('hidden');
+        }
+
+        function submitAppReview(e) {
+            e.preventDefault();
+            closeModal('modal-app-review');
+            addPoints(500, '앱 후기 작성');
+            showToast('앱 리뷰 작성이 완료되었습니다! (+500P 적립)');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.innerText = msg;
+            if (type === 'error') {
+                toastIcon.className = "fa-solid fa-circle-exclamation text-red-400 text-xl";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-check text-green-400 text-xl";
+            }
+
+            toast.classList.remove('translate-y-[-150%]');
+            toast.classList.add('translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0');
+                toast.classList.add('translate-y-[-150%]');
+            }, 2500);
+        }
+    </script>
+</body>
+</html>

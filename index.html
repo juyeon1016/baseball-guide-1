@@ -1317,7 +1317,7 @@
             document.getElementById('food-modal-name').innerText = vendor.name;
             document.getElementById('food-modal-tip-text').innerText = vendor.tip;
 
-            const menuItems = vendor.menu.split(',').map(m => m.trim()).filter(Boolean);
+            const menuItems = vendor.menu.split(/,\s*(?![^()]*\))/).map(m => m.trim()).filter(Boolean);
             document.getElementById('food-modal-menu').innerHTML = menuItems.map(item => `
                 <div class="flex items-center justify-between bg-slate-50 px-4 py-3 rounded-xl border border-slate-200">
                     <span class="font-extrabold text-slate-800">${item}</span>
@@ -1993,16 +1993,532 @@
         /* ========================================== */
         /* TAB 3: STADIUM FACILITY MAP LOGIC          */
         /* ========================================== */
-        function buildFacilityLegendHTML(items) {
-            return items.map(item => `
-                <div class="py-2 flex items-center gap-3">
-                    <span class="w-8 h-8 rounded-full ${item.bg} ${item.text || 'text-white'} flex items-center justify-center shrink-0 shadow-sm text-sm font-black">${item.icon}</span>
-                    <div class="leading-tight">
-                        <div class="font-extrabold text-slate-800 text-xs sm:text-sm">${item.label}</div>
-                        ${item.sub ? `<div class="text-[11px] font-bold text-slate-500 mt-0.5">${item.sub}</div>` : ''}
-                    </div>
-                </div>
-            `).join('');
+        const STADIUM_MAP_CONFIGS = {
+            jamsil: {
+                primary: '#0f2342', secondary: '#1d4ed8', accent: '#d00f31', bg: '#e9eff6',
+                teamLabel: 'LG TWINS · DOOSAN BEARS',
+                subtitle: '잠실종합운동장 야구장 내·외부 통합 가이드맵',
+                address: '서울특별시 송파구 올림픽로 25',
+                shape: 'oval', homeSide: '1·3루 공동',
+                outerTransport: '🚇 종합운동장역(2·9호선) 5·6번 출구 도보 2분 (중앙광장 직결)',
+                outerParking: '🅿️ 잠실종합운동장 주차장 (만차 시 탄천 공영주차장 이용)',
+                outerFood: '🍗 잠실새내 먹자골목 · 새마을시장 (9번 출구 도보 10분)',
+                outerPlaza: '🎫 중앙 광장 매표소 · 1루(두산) / 3루(LG) 공식 스토어',
+                extTop: { title: '🌉 한강공원 · 잠실선착장 방면', sub: '외야 북측 보행육교 연결 (도보 8분)', dir: '북측 외야 뒤편' },
+                extLeft: { title: '🏟️ 잠실올림픽주경기장 · 보조경기장', sub: '3루 서측 광장 맞은편', dir: '서측(3루 방면)' },
+                extRight: { title: '🅿️ 제1·2 부설주차장 & 탄천주차장', sub: '1루 동측 게이트 외곽 바로 인접', dir: '동측(1루 방면)' },
+                extBottomLeft: { title: '🍗 잠실새내 먹자골목 · 새마을시장', sub: '9번 출구 방면 치킨·만두 포장 성지 (도보 10분)', dir: '남서측(3루 외곽)' },
+                extBottomRight: { title: '🚇 종합운동장역 5·6번 출구 (2·9호선)', sub: '중앙 정문 광장 앞 도보 2분 · 버스정류장', dir: '남동측(정문 앞)' },
+                gates: { top: '외야 중앙 게이트', left: '3루 내야 3-1~3-4', right: '1루 내야 1-1~1-4', bottom: '중앙 정문 (본부석)' },
+                shopLabel: 'Bears House · LG트윈스샵',
+                shopLoc: '1루(두산) · 3루·중앙(LG)',
+                ticketLoc: '1루·3루 광장 매표소 & 무인발권기',
+                infoLoc: '중앙 정문 안쪽 1층 안내데스크·의무실',
+                lockerLoc: '1·3루 콘코스 코너 물품보관함',
+                nursingLoc: '2.5층 중앙 통로 수유실',
+                smokeLoc: '야구장 외부 광장 지정 흡연부스 (2곳)',
+                evacLoc: '1·2·2.5·3층 외곽 8개 계단 대피로'
+            },
+            gocheok: {
+                primary: '#570514', secondary: '#820024', accent: '#f6c945', bg: '#f8eff2',
+                teamLabel: 'KIWOOM HEROES',
+                subtitle: '고척스카이돔 보행광장·외부 동선 & 내부 시설 안내도',
+                address: '서울특별시 구로구 경인로 430',
+                shape: 'dome', homeSide: '1루 홈',
+                outerTransport: '🚇 구일역(1호선) 2번 출구 보행광장 직결 도보 3분',
+                outerParking: '🅿️ 구장 내 일반주차 불가 · 동양미래대/롯데마트 이용',
+                outerFood: '🥟 동양미래대 앞 먹자거리 (구일역 건너편 도보 4분)',
+                outerPlaza: '🌉 2층 보행광장 · 외야 광장 매표소 & 스마트티켓존',
+                extTop: { title: '🚇 구일역 (1호선) 2번 출구 직결', sub: '외야 보행광장 경사로 연결 (도보 3분)', dir: '북측(외야 뒤편)' },
+                extLeft: { title: '🏫 동양미래대학교 · 먹자골목', sub: '경인로 육교 건너편 분식·치킨·주차장 (도보 4분)', dir: '서측(3루 건너편)' },
+                extRight: { title: '🏢 고척 아이파크몰 · 롯데마트', sub: '1루 동측 보행로 연결 · 대형 주차장 이용 가능', dir: '동측(1루 방면)' },
+                extBottomLeft: { title: '🚌 고척스카이돔·동양미래대 정류장', sub: '경인로 중앙버스전용차로 정류장 (도보 2분)', dir: '남서측(정문 앞)' },
+                extBottomRight: { title: '🌊 안양천 산책로 · 고척교 방면', sub: '1루 남동측 외곽 보행로 연결', dir: '남동측(1루 외곽)' },
+                gates: { top: '게이트 E (외야)', left: '게이트 D (3루)', right: '게이트 B (1루)', bottom: '게이트 C (중앙·스카이박스)' },
+                shopLabel: '히어로즈샵 (공식 스토어)',
+                shopLoc: '2층 보행광장 & 내부 B게이트 앞',
+                ticketLoc: '외야 광장 외부 매표소 & 키오스크',
+                infoLoc: '중앙 C게이트 인근 종합안내데스크·의무실',
+                lockerLoc: '2층 보행광장 출입구 옆 물품보관함',
+                nursingLoc: '1루 B게이트 인근 수유실·유모차보관소',
+                smokeLoc: '보행광장 외곽 외부 지정 흡연구역',
+                evacLoc: '3·4·5층 전 구역 피난계획도 및 비상계단'
+            },
+            ssg: {
+                primary: '#0f2342', secondary: '#1e3a8a', accent: '#ce0e2d', bg: '#f4f6f9',
+                teamLabel: 'SSG LANDERS',
+                subtitle: '인천SSG랜더스필드 문학경기장 외곽 & 내부 시설 안내도',
+                address: '인천광역시 미추홀구 매소홀로 618',
+                shape: 'oval', homeSide: '1루 홈',
+                outerTransport: '🚇 문학경기장역(인천 1호선) 2번 출구 도보 5분',
+                outerParking: '🅿️ 문학경기장 대형 부설주차장 (북문·동문 진입)',
+                outerFood: '🍔 북문 광장 푸드트럭 존 & 문학역 신포닭강정 부스',
+                outerPlaza: '🏟️ 북문 광장 · 도드람 GATE · 그린존(잔디석) 외야 진입로',
+                extTop: { title: '🏟️ 인천문학주경기장 · 북문 광장', sub: '외야 북측 광장 푸드트럭존 & 이벤트 무대', dir: '북측(외야 방면)' },
+                extLeft: { title: '🚇 문학경기장역 2번 출구 (인천1호선)', sub: '신포닭강정 팝업부스 · 도보 5분 직통 보행로', dir: '서측(3루 방면)' },
+                extRight: { title: '🅿️ 문학경기장 동문 대형 주차장', sub: '1루 동측 게이트 바로 앞 주차구역 (출차 용이)', dir: '동측(1루 방면)' },
+                extBottomLeft: { title: '🌳 문학산 산책로 · 남문 진입로', sub: '3루 남서측 외곽 녹지 및 쉼터 광장', dir: '남서측(3루 외곽)' },
+                extBottomRight: { title: '🚌 문학경기장·박태환수영장 정류장', sub: '매소홀로 방면 시내·광역버스 승강장 (도보 3분)', dir: '남동측(도드람GATE 앞)' },
+                gates: { top: 'GATE 6·7 (외야)', left: 'GATE 5 (3루)', right: 'GATE 3 (1루)', bottom: 'GATE 4 · 도드람 GATE' },
+                shopLabel: '랜더스 샵 by 형지',
+                shopLoc: '1루 콘코스(스타벅스 옆) & 외야 GATE 7',
+                ticketLoc: '1루 광장 매표소 · 3루 광장 매표소',
+                infoLoc: '1층 내야 중앙 안내데스크·의무실',
+                lockerLoc: '1루·3루 주출입구 인근 물품보관함',
+                nursingLoc: '1층 내야 중앙 수유실',
+                smokeLoc: '구장 외부 광장 지정 흡연부스',
+                evacLoc: '각 게이트 연결 외곽 대피 계단'
+            },
+            kt: {
+                primary: '#18181b', secondary: '#334155', accent: '#e60012', bg: '#f3f4f6',
+                teamLabel: 'KT WIZ',
+                subtitle: '수원KT위즈파크 종합운동장 외곽 & 내부 시설 안내도',
+                address: '경기도 수원시 장안구 경수대로 893',
+                shape: 'oval', homeSide: '1루 홈',
+                outerTransport: '🚌 수원종합운동장 정류장 (수원역·화서역 직행버스 15분)',
+                outerParking: '🅿️ 수원종합운동장 주차장 (경기일 사전예약 확인 필수)',
+                outerFood: '🍗 조원동 먹자골목 & 조원시장 통닭거리 (길 건너 3분)',
+                outerPlaza: '🎪 위즈가든 광장 · wizzap 스마트티켓 전용 게이트',
+                extTop: { title: '🏟️ 수원종합운동장 주경기장 · 실내체육관', sub: '외야 북측 복합스포츠타운 연결 통로', dir: '북측(외야 뒤편)' },
+                extLeft: { title: '🍗 조원동 먹자골목 · 조원시장', sub: '경수대로 건너편 왕갈비통닭·분식 포장거리 (도보 3분)', dir: '서측(3루 건너편)' },
+                extRight: { title: '🅿️ 수원종합운동장 부설 주차장', sub: '1루 동측 진입로 (사전 주차예약 차량 전용)', dir: '동측(1루 방면)' },
+                extBottomLeft: { title: '🚌 수원KT위즈파크·종합운동장 정류장', sub: '수원역·화서역 방면 시내버스 승강장 (도보 2분)', dir: '남서측(3루 정문 앞)' },
+                extBottomRight: { title: '🎪 위즈가든 중앙 광장 · 포토존', sub: '1루 메인게이트 앞 야외 행사장 및 푸드트럭', dir: '남동측(1루 광장)' },
+                gates: { top: '3-2 · 1-2 게이트 (외야)', left: '3루 게이트 (3-1)', right: '1루 게이트 (1-1)', bottom: '1루·3루 메인게이트' },
+                shopLabel: 'kt wiz 공식 굿즈샵 (Wiz Hall)',
+                shopLoc: '1층 3루측 광장 Wiz Hall 내',
+                ticketLoc: '1층 3루측 매표소 & 외야 3-1게이트 매표소',
+                infoLoc: '위즈센터 고객센터 (1루 홈플레이트 뒤)',
+                lockerLoc: '1층 1루측 콘코스 물품보관함',
+                nursingLoc: '2층 3루측 뒤 수유실 (1F 유모차보관소)',
+                smokeLoc: '3-3게이트 외부 지정 흡연구역',
+                evacLoc: '층별 비상구 및 중앙 광장 대피 동선'
+            },
+            hanwha: {
+                primary: '#0f2342', secondary: '#1e3a8a', accent: '#fc4e00', bg: '#f4f6f9',
+                teamLabel: 'HANWHA EAGLES',
+                subtitle: '대전 한화생명 볼파크 한밭운동장 외곽 & 내부 시설 안내도',
+                address: '대전광역시 중구 대종로 373',
+                shape: 'asymmetric', homeSide: '1루 홈',
+                outerTransport: '🚌 한밭종합운동장 정류장 (대전역·중앙로역 버스 15분)',
+                outerParking: '🅿️ 한밭종합운동장 부설주차장 & 인근 공영주차장',
+                outerFood: '🥖 대전역·은행동 성심당 & 대흥동 먹자골목 사전 포장',
+                outerPlaza: '🔥 한화생명 메인게이트 광장 · 구장 외부 매표소',
+                extTop: { title: '🏀 충무체육관 · 한밭스포츠타운', sub: '외야 북측 보행광장 연결', dir: '북측(외야 방면)' },
+                extLeft: { title: '🅿️ 한밭종합운동장 서측 주차장', sub: '3루 출입구 3-1 외곽 진입 도로', dir: '서측(3루 방면)' },
+                extRight: { title: '🥖 은행동 성심당 · 대흥동 먹자거리 방면', sub: '대종로 북서쪽 시내버스 10분 거리 사전 포장 코스', dir: '동측(대종로 방면)' },
+                extBottomLeft: { title: '🎫 구장 외부 중앙 매표소 · 쉼터 광장', sub: '메인게이트 좌측(3루 방향) 야외 티켓부스', dir: '남서측(정문 좌측)' },
+                extBottomRight: { title: '🚌 한밭종합운동장 시내버스 정류장', sub: '대전역·서대전역 직행버스 승강장 (도보 2분)', dir: '남동측(메인게이트 앞)' },
+                gates: { top: '출입구 4-2 (외야)', left: '출입구 3-1 (3루측)', right: '출입구 1-1·1-2 (1루측)', bottom: '메인 게이트 (한화생명)' },
+                shopLabel: '이글스 팬샵 · 마킹샵',
+                shopLoc: '구장 2층 1루측 팬샵·마킹샵',
+                ticketLoc: '메인게이트 좌측 구장 외부 매표소',
+                infoLoc: '1층 중앙 메인게이트 안쪽 안내소·의무실',
+                lockerLoc: '1층 주출입구 인근 물품보관함',
+                nursingLoc: '1층·2층 내야 콘코스 수유실',
+                smokeLoc: '구장 외부 지정 흡연구역',
+                evacLoc: '1~4층 콘코스 비상계단 및 광장 대피로'
+            },
+            kia: {
+                primary: '#0b131e', secondary: '#991b1b', accent: '#ea0029', bg: '#f4f6f9',
+                teamLabel: 'KIA TIGERS',
+                subtitle: '광주기아챔피언스필드 서림로 외곽 & 내부 시설 안내도',
+                address: '광주광역시 북구 서림로 10',
+                shape: 'oval', homeSide: '3루 홈',
+                outerTransport: '🚌 무등경기장 정류장 (광주송정역·유스퀘어 직행버스)',
+                outerParking: '🅿️ 챔피언스필드 지하·지상 주차장 (2시간 전 입차 권장)',
+                outerFood: '🍗 양동시장 통닭거리 & 임동 맛집골목 도보 8분',
+                outerPlaza: '🐯 3루 홈팀 응원광장 · 중앙출입구 & 게이트 1~8',
+                extTop: { title: '⚾ 무등야구장 (구 경기장) · 보조구장', sub: '외야 북측 게이트 7·8 맞은편 위치', dir: '북측(외야 뒤편)' },
+                extLeft: { title: '🐯 3루 홈팀 응원광장 · 타이거즈샵', sub: 'Gate 4·5 앞 대형 굿즈샵 및 야외 무대', dir: '서측(3루 홈 광장)' },
+                extRight: { title: '🅿️ 챔피언스필드 지하·지상 주차장 입구', sub: '1루 서림로 방면 차량 진출입로', dir: '동측(1루 방면)' },
+                extBottomLeft: { title: '🍗 양동시장 통닭거리 · 임동 맛집골목', sub: '남서측 도보 8분 (수일통닭·양동통닭 포장 성지)', dir: '남서측(3루 외곽)' },
+                extBottomRight: { title: '🚌 무등경기장 시내버스 정류장', sub: '광주송정역·유스퀘어 방면 버스 승강장 (도보 3분)', dir: '남동측(중앙출입구 앞)' },
+                gates: { top: 'Gate 7·8 (외야)', left: 'Gate 4·5·6 (3루 홈)', right: 'Gate 1·2·3 (1루)', bottom: '중앙출입구 (본부석)' },
+                shopLabel: '타이거즈 팀스토어',
+                shopLoc: '3루측 광장 대형 오프라인 스토어',
+                ticketLoc: '매표소 1 (1루측) · 매표소 3 (외야)',
+                infoLoc: '1루측 종합안내소 & 중앙 의무실',
+                lockerLoc: '3루측 Gate 4 하단 & 1루측 Gate 3 인근',
+                nursingLoc: '3층 (112·118 뒤) & 5층 (Gate 5·13 인근)',
+                smokeLoc: '외부 Gate 1 · Gate 6 인근 지정 흡연구역',
+                evacLoc: '지하 2층~지상 5층 전 구역 비상구 대피로'
+            },
+            samsung: {
+                primary: '#042f66', secondary: '#074ca1', accent: '#60a5fa', bg: '#edf4fc',
+                teamLabel: 'SAMSUNG LIONS',
+                subtitle: '대구삼성라이온즈파크 대공원역 외곽 & 팔각구장 시설 안내도',
+                address: '대구광역시 수성구 야구전설로 1',
+                shape: 'octagon', homeSide: '3루 홈',
+                outerTransport: '🚇 대공원역(대구 2호선) 5번 출구 도보 1분 초역세권',
+                outerParking: '🅿️ 라이온즈파크 부설주차장 (정체 심해 지하철 권장)',
+                outerFood: '🥟 수성알파시티 먹자거리 & 대공원역 테이크아웃존',
+                outerPlaza: '🦁 5번 출구 직결 중앙 광장 · Gate 21(HOME 3루)',
+                extTop: { title: '🌲 대구대공원 · 수성알파시티 방면', sub: '외야 Gate 2 북측 산책로 및 상가 연결', dir: '북측(외야 뒤편)' },
+                extLeft: { title: '🅿️ 라팍 서측 부설주차장 (1루 방면)', sub: '야구전설로 진입 차량 주차구역', dir: '서측(1루 AWAY)' },
+                extRight: { title: '🦁 3루 홈 광장 · 라이온즈 팀스토어', sub: 'Gate 21 앞 대형 공식 스토어 & 포토존', dir: '동측(3루 HOME)' },
+                extBottomLeft: { title: '🥟 대공원역 테이크아웃존 · 편의점', sub: '지하철 역사 내 분식·치킨·음료 포장 부스', dir: '남서측(정문 좌측)' },
+                extBottomRight: { title: '🚇 대공원역 5번 출구 (대구 2호선)', sub: '중앙 정문 계단 직결 초역세권 (도보 1분)', dir: '남동측(정문 바로 앞)' },
+                gates: { top: 'Gate 2 (외야)', left: 'Gate 1 (AWAY 1루)', right: 'Gate 21 (HOME 3루)', bottom: '중앙 정문 (출입구)' },
+                shopLabel: '라이온즈 팀스토어',
+                shopLoc: '3루 주출입구 광장 대형 팀스토어',
+                ticketLoc: '중앙 광장 매표소 (대공원역 5번 출구 좌측)',
+                infoLoc: '내야 2층 중앙 안내데스크·의무실',
+                lockerLoc: '3루·중앙 콘코스 물품보관함',
+                nursingLoc: '내야 2층 중앙 안내소 옆 수유실',
+                smokeLoc: '외야 및 광장 외곽 지정 흡연구역',
+                evacLoc: '3층·4층·5층 팔각 외곽 피난계획도 경로'
+            },
+            lotte: {
+                primary: '#041e42', secondary: '#1d4ed8', accent: '#d00f31', bg: '#f4f6f9',
+                teamLabel: 'LOTTE GIANTS',
+                subtitle: '부산 사직야구장 사직로 외곽 & 내부 편의시설 안내도',
+                address: '부산광역시 동래구 사직로 45',
+                shape: 'oval', homeSide: '1루 홈',
+                outerTransport: '🚇 사직역(부산 3호선) 1번 출구 도보 7분 직진',
+                outerParking: '🅿️ 사직종합운동장 주차장 (출차 혼잡으로 지하철 권장)',
+                outerFood: '🍜 사직동 먹자골목 (사직역 4번 출구 파전·막국수·치킨)',
+                outerPlaza: '⚾ 사직 야구광장 · 컨테이너 굿즈샵 & 1·3루·외야 매표소',
+                extTop: { title: '🏟️ 부산아시아드주경기장 · 보조경기장', sub: '외야 북측 사직종합운동장 단지 내 연결', dir: '북측(외야 뒤편)' },
+                extLeft: { title: '🅿️ 사직종합운동장 서측 주차장', sub: '3루 외곽 야외 주차구역 (출차 대기 주의)', dir: '서측(3루 방면)' },
+                extRight: { title: '🏀 사직실내체육관 · 수영장', sub: '1루 동측 스포츠파크 광장 연결', dir: '동측(1루 방면)' },
+                extBottomLeft: { title: '🍜 사직동 먹자골목 (사직역 4번 출구)', sub: '주문진막국수·닭강정·김밥 포장 맛집 거리 (도보 6분)', dir: '남서측(사직로 건너편)' },
+                extBottomRight: { title: '🚇 사직역 1번 출구 (부산 3호선)', sub: '사직로 따라 중앙출입구까지 도보 7분 직진', dir: '남동측(정문 앞)' },
+                gates: { top: '외야 출입구 (매표소)', left: '3루 출입구', right: '1루 출입구', bottom: '중앙출입구 (정문)' },
+                shopLabel: '자이언츠 프로페셔널샵 · 유니폼샵',
+                shopLoc: '1층 중앙출입구(프로샵) · 1·3루 컨테이너 부스',
+                ticketLoc: '1루 매표소(1F) · 3루 매표소(1·2F) · 외야 매표소',
+                infoLoc: '1층 중앙 현관 안쪽 종합안내소·의무실',
+                lockerLoc: '3층 자이언츠샵 맞은편 · 2-16 GATE 맞은편',
+                nursingLoc: '1층 중앙 안내데스크 인근 수유실',
+                smokeLoc: '야구장 광장 외곽 지정 흡연부스',
+                evacLoc: '1·2·3층 전 구역 비상계단 및 광장 대피로'
+            },
+            nc: {
+                primary: '#122b4e', secondary: '#1d467d', accent: '#c7a052', bg: '#e9f1fa',
+                teamLabel: 'NC DINOS',
+                subtitle: '창원NC파크 가족공원 외곽 & 오픈형 콘코스 시설 안내도',
+                address: '경상남도 창원시 마산회원구 삼호로 63',
+                shape: 'asymmetric', homeSide: '1루 홈',
+                outerTransport: '🚌 마산회원구청·NC파크 정류장 (마산역 버스 10분)',
+                outerParking: '🅿️ 창원NC파크 부설주차장 & 마산야구센터 주차장',
+                outerFood: '🍗 산호동 먹자골목 (구장 남측 도보 5분 치킨·분식거리)',
+                outerPlaza: '🦕 NC 다이노스 가족공원 · GATE 1~4 오픈 콘코스',
+                extTop: { title: '⚾ 마산야구장 (올림픽기념관 방면)', sub: '외야 북측 마산야구센터 단지 내 인접', dir: '북측(외야 뒤편)' },
+                extLeft: { title: '🅿️ 마산야구센터 서측 주차장', sub: '3루 출입구(GATE 3·4) 외곽 주차구역', dir: '서측(3루 방면)' },
+                extRight: { title: '🦕 NC 다이노스 가족공원 · 팀스토어', sub: '1루 동측 광장 2층 규모 공식 스토어 & 공원', dir: '동측(1루 광장)' },
+                extBottomLeft: { title: '🍗 산호동 먹자골목 · 산호천 산책로', sub: '구장 남서측 도보 5분 치킨·분식·카페 거리', dir: '남서측(3루 외곽)' },
+                extBottomRight: { title: '🚌 마산회원구청·창원NC파크 정류장', sub: '마산역·창원중앙역 방면 직행버스 승강장 (도보 3분)', dir: '남동측(정문 앞)' },
+                gates: { top: '외야 출입구', left: '3루 출입구 (GATE 3·4)', right: '1루 출입구 (GATE 1·2)', bottom: '중앙 정문 (가족공원)' },
+                shopLabel: 'NC 다이노스 팀스토어',
+                shopLoc: '가족공원 앞 2층 규모 공식 스토어',
+                ticketLoc: '가족공원 앞 중앙 매표소 & 무인발권기',
+                infoLoc: '1층 중앙 정문 안쪽 종합안내데스크·의무실',
+                lockerLoc: '1층 3루·중앙 콘코스 물품보관함',
+                nursingLoc: '1층 중앙 안내데스크 옆 가족 수유실',
+                smokeLoc: '구장 외부 지정 흡연부스',
+                evacLoc: '1층·2층·3층 오픈 콘코스 피난계획도 경로'
+            }
+        };
+
+        function buildDetailedStadiumMapSVG(sid, cfg) {
+            const isOctagon = cfg.shape === 'octagon';
+            const isDome = cfg.shape === 'dome';
+            const isAsym = cfg.shape === 'asymmetric';
+
+            let outerShell = `<ellipse cx="480" cy="340" rx="265" ry="198" fill="#e2e8f0" stroke="#64748b" stroke-width="3"/>`;
+            let bowlOuter = `<ellipse cx="480" cy="342" rx="224" ry="164" fill="${cfg.primary}" stroke="#0f172a" stroke-width="2.5"/>`;
+            let bowlUpper = `<ellipse cx="480" cy="342" rx="208" ry="150" fill="none" stroke="${cfg.accent}" stroke-width="12" stroke-dasharray="11,3"/>`;
+            let concourse = `<ellipse cx="480" cy="344" rx="190" ry="136" fill="#cbd5e1" stroke="#475569" stroke-width="1.5"/>`;
+            let bowlLower = `<ellipse cx="480" cy="346" rx="174" ry="122" fill="none" stroke="${cfg.secondary}" stroke-width="12" stroke-dasharray="9,2.5"/>`;
+
+            if (isOctagon) {
+                outerShell = `<polygon points="305,142 655,142 768,255 738,430 598,498 362,498 222,430 192,255" fill="#e2e8f0" stroke="#64748b" stroke-width="3"/>`;
+                bowlOuter = `<polygon points="320,210 480,190 640,210 704,288 670,420 574,476 386,476 290,420 256,288" fill="${cfg.primary}" stroke="#0f172a" stroke-width="2.5"/>`;
+                bowlUpper = `<polygon points="332,220 480,202 628,220 686,292 655,408 566,460 394,460 305,408 274,292" fill="none" stroke="${cfg.accent}" stroke-width="12" stroke-dasharray="11,3"/>`;
+                concourse = `<polygon points="344,230 480,214 616,230 668,296 640,396 558,444 402,444 320,396 292,296" fill="#cbd5e1" stroke="#475569" stroke-width="1.5"/>`;
+                bowlLower = `<polygon points="355,240 480,225 605,240 652,300 626,384 550,428 410,428 334,384 308,300" fill="none" stroke="${cfg.secondary}" stroke-width="12" stroke-dasharray="9,2.5"/>`;
+            } else if (isAsym) {
+                outerShell = `<path d="M 278,168 Q 480,120 682,168 L 732,310 Q 702,482 480,510 Q 258,482 228,310 Z" fill="#e2e8f0" stroke="#64748b" stroke-width="3"/>`;
+                bowlOuter = `<path d="M 298,184 Q 480,142 662,184 L 704,310 Q 678,458 480,484 Q 282,458 256,310 Z" fill="${cfg.primary}" stroke="#0f172a" stroke-width="2.5"/>`;
+                bowlUpper = `<path d="M 310,195 Q 480,156 650,195 L 688,310 Q 664,442 480,466 Q 296,442 272,310 Z" fill="none" stroke="${cfg.accent}" stroke-width="12" stroke-dasharray="11,3"/>`;
+                concourse = `<path d="M 324,206 Q 480,170 636,206 L 668,310 Q 646,426 480,448 Q 314,426 292,310 Z" fill="#cbd5e1" stroke="#475569" stroke-width="1.5"/>`;
+                bowlLower = `<path d="M 335,215 Q 480,182 625,215 L 654,310 Q 634,412 480,432 Q 326,412 306,310 Z" fill="none" stroke="${cfg.secondary}" stroke-width="12" stroke-dasharray="9,2.5"/>`;
+            }
+
+            const domeRibs = isDome
+                ? `<g stroke="#94a3b8" stroke-width="1.5" opacity="0.75">
+                    <line x1="295" y1="175" x2="318" y2="202"/><line x1="385" y1="148" x2="398" y2="176"/>
+                    <line x1="575" y1="148" x2="562" y2="176"/><line x1="665" y1="175" x2="642" y2="202"/>
+                    <line x1="235" y1="270" x2="262" y2="282"/><line x1="725" y1="270" x2="698" y2="282"/>
+                    <line x1="248" y1="425" x2="274" y2="408"/><line x1="712" y1="425" x2="686" y2="408"/>
+                   </g>`
+                : '';
+
+            return `
+                <svg viewBox="0 0 960 695" class="w-full h-auto max-h-[650px] select-none">
+                    <defs>
+                        <pattern id="grass-${sid}" width="20" height="20" patternUnits="userSpaceOnUse">
+                            <rect width="10" height="20" fill="#3a7d38"/>
+                            <rect x="10" width="10" height="20" fill="#468e43"/>
+                        </pattern>
+                        <filter id="shadow-${sid}" x="-10%" y="-10%" width="120%" height="120%">
+                            <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.28"/>
+                        </filter>
+                    </defs>
+
+                    <!-- Outer City Zone Background -->
+                    <rect x="0" y="0" width="960" height="695" fill="#d7e1ec"/>
+
+                    <!-- Exterior Road Network (North, West, East, South Avenues & Crosswalks) -->
+                    <!-- West Road (3rd Base Outer) -->
+                    <path d="M 155,0 L 210,0 L 210,695 L 155,695 Z" fill="#94a3b8"/>
+                    <line x1="182" y1="0" x2="182" y2="695" stroke="#f8fafc" stroke-width="2" stroke-dasharray="10,8"/>
+                    <!-- East Road (1st Base Outer) -->
+                    <path d="M 750,0 L 805,0 L 805,695 L 750,695 Z" fill="#94a3b8"/>
+                    <line x1="777" y1="0" x2="777" y2="695" stroke="#f8fafc" stroke-width="2" stroke-dasharray="10,8"/>
+                    <!-- North Road (Outfield Outer) -->
+                    <path d="M 0,94 L 960,94 L 960,132 L 0,132 Z" fill="#94a3b8"/>
+                    <line x1="0" y1="113" x2="960" y2="113" stroke="#f8fafc" stroke-width="2" stroke-dasharray="10,8"/>
+                    <!-- South Main Boulevard (Front Plaza) -->
+                    <path d="M 0,552 L 960,552 L 960,594 L 0,594 Z" fill="#8896a6"/>
+                    <line x1="0" y1="573" x2="960" y2="573" stroke="#fde047" stroke-width="2" stroke-dasharray="12,8"/>
+
+                    <!-- Pedestrian Crosswalks Connecting Exterior Facilities to Stadium Plaza -->
+                    <g fill="#ffffff" opacity="0.9">
+                        <!-- West Crosswalk -->
+                        <rect x="160" y="325" width="45" height="5"/><rect x="160" y="335" width="45" height="5"/><rect x="160" y="345" width="45" height="5"/>
+                        <!-- East Crosswalk -->
+                        <rect x="755" y="325" width="45" height="5"/><rect x="755" y="335" width="45" height="5"/><rect x="755" y="345" width="45" height="5"/>
+                        <!-- South Center Crosswalk -->
+                        <rect x="462" y="555" width="6" height="36"/><rect x="474" y="555" width="6" height="36"/><rect x="486" y="555" width="6" height="36"/><rect x="498" y="555" width="6" height="36"/>
+                    </g>
+
+                    <!-- Dotted Walking Path Arrows from Exterior Landmarks to Gates -->
+                    <g fill="none" stroke="#ea580c" stroke-width="3" stroke-dasharray="6,5">
+                        <path d="M 145,270 L 245,270"/>
+                        <path d="M 815,270 L 715,270"/>
+                        <path d="M 480,594 L 480,536"/>
+                        <path d="M 165,594 Q 260,565 340,510"/>
+                        <path d="M 795,594 Q 700,565 620,510"/>
+                    </g>
+
+                    <!-- Stadium Outer Park Green Belt & Trees -->
+                    <g fill="#4c8c32" stroke="#2d5a1e" stroke-width="1">
+                        <circle cx="242" cy="185" r="9"/><circle cx="228" cy="225" r="8"/><circle cx="222" cy="435" r="9"/>
+                        <circle cx="718" cy="185" r="9"/><circle cx="732" cy="225" r="8"/><circle cx="738" cy="435" r="9"/>
+                    </g>
+
+                    <!-- Stadium Structure -->
+                    ${outerShell}
+                    ${domeRibs}
+                    ${bowlOuter}
+                    ${bowlUpper}
+                    ${concourse}
+                    ${bowlLower}
+
+                    <!-- Playing Field -->
+                    <path d="M 352,338 C 348,248 408,225 480,225 C 552,225 612,248 608,338 L 480,450 Z" fill="url(#grass-${sid})" stroke="#7c2d12" stroke-width="4.5"/>
+                    <polygon points="480,442 408,372 480,302 552,372" fill="#b4693e"/>
+                    <path d="M 422,364 Q 480,320 538,364 L 480,425 Z" fill="#3f823c"/>
+                    <circle cx="480" cy="374" r="10" fill="#b4693e" stroke="#e5c3a6" stroke-width="1"/>
+                    <polygon points="480,430 484,434 482,438 478,438 476,434" fill="#ffffff"/>
+                    <rect x="542" y="368" width="7" height="7" fill="#ffffff" transform="rotate(45 545 372)"/>
+                    <rect x="476" y="300" width="7" height="7" fill="#ffffff" transform="rotate(45 480 304)"/>
+                    <rect x="410" y="368" width="7" height="7" fill="#ffffff" transform="rotate(45 413 372)"/>
+                    <line x1="480" y1="434" x2="354" y2="334" stroke="#ffffff" stroke-width="1.8" opacity="0.9"/>
+                    <line x1="480" y1="434" x2="606" y2="334" stroke="#ffffff" stroke-width="1.8" opacity="0.9"/>
+
+                    <!-- ================================================== -->
+                    <!-- EXTERIOR FACILITY CARDS (AUTO-WRAPPED INSIDE BOX)  -->
+                    <!-- ================================================== -->
+
+                    <!-- 1. North Exterior Landmark (Top Center) -->
+                    <g filter="url(#shadow-${sid})">
+                        <rect x="210" y="6" width="540" height="82" rx="16" fill="#0f172a" stroke="#38bdf8" stroke-width="3"/>
+                        <foreignObject x="220" y="10" width="520" height="74">
+                            <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:sans-serif;line-height:1.25;padding:0 6px;box-sizing:border-box;">
+                                <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">
+                                    <span style="background:#0284c7;color:#ffffff;font-size:12.5px;font-weight:900;padding:2px 9px;border-radius:7px;white-space:nowrap;">${cfg.extTop.dir}</span>
+                                    <span style="color:#facc15;font-size:15px;font-weight:900;">${cfg.extTop.title}</span>
+                                </div>
+                                <div style="color:#f8fafc;font-size:13.5px;font-weight:800;margin-top:5px;">${cfg.extTop.sub}</div>
+                            </div>
+                        </foreignObject>
+                    </g>
+
+                    <!-- 2. West Exterior Landmark (Left Side - 3rd Base Outer) -->
+                    <g filter="url(#shadow-${sid})">
+                        <rect x="4" y="138" width="188" height="196" rx="16" fill="#ffffff" stroke="#ea580c" stroke-width="3"/>
+                        <foreignObject x="10" y="144" width="176" height="184">
+                            <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;font-family:sans-serif;line-height:1.3;padding:4px 4px;box-sizing:border-box;word-break:keep-all;">
+                                <div style="width:100%;background:#ea580c;color:#ffffff;font-size:12.5px;font-weight:900;padding:4px 6px;border-radius:8px;">📍 ${cfg.extLeft.dir}</div>
+                                <div style="color:#0f172a;font-size:14px;font-weight:900;margin-top:4px;">${cfg.extLeft.title}</div>
+                                <div style="color:#334155;font-size:12.5px;font-weight:800;">${cfg.extLeft.sub}</div>
+                            </div>
+                        </foreignObject>
+                    </g>
+
+                    <!-- 3. East Exterior Landmark (Right Side - 1st Base Outer) -->
+                    <g filter="url(#shadow-${sid})">
+                        <rect x="768" y="138" width="188" height="196" rx="16" fill="#ffffff" stroke="#2563eb" stroke-width="3"/>
+                        <foreignObject x="774" y="144" width="176" height="184">
+                            <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;font-family:sans-serif;line-height:1.3;padding:4px 4px;box-sizing:border-box;word-break:keep-all;">
+                                <div style="width:100%;background:#2563eb;color:#ffffff;font-size:12.5px;font-weight:900;padding:4px 6px;border-radius:8px;">📍 ${cfg.extRight.dir}</div>
+                                <div style="color:#0f172a;font-size:14px;font-weight:900;margin-top:4px;">${cfg.extRight.title}</div>
+                                <div style="color:#334155;font-size:12.5px;font-weight:800;">${cfg.extRight.sub}</div>
+                            </div>
+                        </foreignObject>
+                    </g>
+
+                    <!-- 4. Exterior Smoking Booth & Ticket Zone (Mid-Lower Outer) -->
+                    <g filter="url(#shadow-${sid})">
+                        <rect x="4" y="356" width="188" height="122" rx="14" fill="#f0fdf4" stroke="#16a34a" stroke-width="3"/>
+                        <foreignObject x="10" y="362" width="176" height="110">
+                            <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:sans-serif;line-height:1.35;padding:2px 4px;box-sizing:border-box;word-break:keep-all;">
+                                <div style="color:#15803d;font-size:14px;font-weight:900;">🚬 외부 지정 흡연부스</div>
+                                <div style="color:#0f172a;font-size:13px;font-weight:800;margin-top:4px;">3루 외곽 광장 모서리</div>
+                                <div style="color:#334155;font-size:12px;font-weight:700;margin-top:2px;">(구장 내부 전 구역 금연)</div>
+                            </div>
+                        </foreignObject>
+
+                        <rect x="768" y="356" width="188" height="122" rx="14" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+                        <foreignObject x="774" y="362" width="176" height="110">
+                            <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:sans-serif;line-height:1.35;padding:2px 4px;box-sizing:border-box;word-break:keep-all;">
+                                <div style="color:#1d4ed8;font-size:14px;font-weight:900;">🎫 야외 매표소·발권기</div>
+                                <div style="color:#0f172a;font-size:13px;font-weight:800;margin-top:4px;">1루·중앙 광장 앞 부스</div>
+                                <div style="color:#334155;font-size:12px;font-weight:700;margin-top:2px;">(모바일 티켓 바로 입장)</div>
+                            </div>
+                        </foreignObject>
+                    </g>
+
+                    <!-- 5. South-West Exterior Facility (Bottom Left) -->
+                    <g filter="url(#shadow-${sid})">
+                        <rect x="4" y="588" width="332" height="98" rx="14" fill="#1e293b" stroke="#fb923c" stroke-width="3"/>
+                        <foreignObject x="12" y="593" width="316" height="88">
+                            <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:sans-serif;line-height:1.3;padding:2px 6px;box-sizing:border-box;word-break:keep-all;">
+                                <div style="color:#fb923c;font-size:13px;font-weight:900;">[${cfg.extBottomLeft.dir}] ${cfg.extBottomLeft.title}</div>
+                                <div style="color:#ffffff;font-size:12.5px;font-weight:800;margin-top:4px;">${cfg.extBottomLeft.sub}</div>
+                            </div>
+                        </foreignObject>
+                    </g>
+
+                    <!-- 6. South-East Exterior Transit Station (Bottom Right) -->
+                    <g filter="url(#shadow-${sid})">
+                        <rect x="624" y="588" width="332" height="98" rx="14" fill="#0f172a" stroke="#facc15" stroke-width="3"/>
+                        <foreignObject x="632" y="593" width="316" height="88">
+                            <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:sans-serif;line-height:1.3;padding:2px 6px;box-sizing:border-box;word-break:keep-all;">
+                                <div style="color:#facc15;font-size:13px;font-weight:900;">[${cfg.extBottomRight.dir}] ${cfg.extBottomRight.title}</div>
+                                <div style="color:#ffffff;font-size:12.5px;font-weight:800;margin-top:4px;">${cfg.extBottomRight.sub}</div>
+                            </div>
+                        </foreignObject>
+                    </g>
+
+                    <!-- 7. South Center Main Entrance Plaza Badge -->
+                    <g filter="url(#shadow-${sid})">
+                        <rect x="344" y="588" width="272" height="98" rx="14" fill="${cfg.primary}" stroke="#ffffff" stroke-width="2.5"/>
+                        <foreignObject x="350" y="593" width="260" height="88">
+                            <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:sans-serif;line-height:1.3;padding:2px 6px;box-sizing:border-box;word-break:keep-all;">
+                                <div style="color:#fde047;font-size:14.5px;font-weight:900;">🏛️ ${cfg.gates.bottom}</div>
+                                <div style="color:#ffffff;font-size:12.5px;font-weight:800;margin-top:5px;">횡단보도 건너 중앙 정문 입장</div>
+                            </div>
+                        </foreignObject>
+                    </g>
+
+                    <!-- ================================================== -->
+                    <!-- INTERIOR GATES & CONCOURSE MARKERS                 -->
+                    <!-- ================================================== -->
+                    <g filter="url(#shadow-${sid})">
+                        <rect x="365" y="124" width="230" height="42" rx="10" fill="${cfg.primary}" stroke="#fff" stroke-width="2"/>
+                        <foreignObject x="370" y="127" width="220" height="36">
+                            <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;font-family:sans-serif;color:#ffffff;font-size:13.5px;font-weight:900;line-height:1.2;word-break:keep-all;">🚪 ${cfg.gates.top}</div>
+                        </foreignObject>
+
+                        <rect x="194" y="314" width="154" height="48" rx="10" fill="${cfg.primary}" stroke="#fff" stroke-width="2"/>
+                        <foreignObject x="198" y="317" width="146" height="42">
+                            <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;font-family:sans-serif;color:#fde047;font-size:13px;font-weight:900;line-height:1.2;word-break:keep-all;">${cfg.gates.left}</div>
+                        </foreignObject>
+
+                        <rect x="612" y="314" width="154" height="48" rx="10" fill="${cfg.primary}" stroke="#fff" stroke-width="2"/>
+                        <foreignObject x="616" y="317" width="146" height="42">
+                            <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;font-family:sans-serif;color:#fde047;font-size:13px;font-weight:900;line-height:1.2;word-break:keep-all;">${cfg.gates.right}</div>
+                        </foreignObject>
+                    </g>
+
+                    <!-- Concourse Facility Icons -->
+                    <g font-size="15" text-anchor="middle">
+                        <circle cx="348" cy="186" r="17" fill="#0284c7" stroke="#fff" stroke-width="2.5"/><text x="348" y="192" fill="#fff">🚻</text>
+                        <circle cx="612" cy="186" r="17" fill="#0284c7" stroke="#fff" stroke-width="2.5"/><text x="612" y="192" fill="#fff">🚻</text>
+                        <circle cx="332" cy="482" r="18" fill="${cfg.accent}" stroke="#fff" stroke-width="2.5"/><text x="332" y="488" fill="#fff">🛍️</text>
+                        <circle cx="628" cy="482" r="18" fill="#7e22ce" stroke="#fff" stroke-width="2.5"/><text x="628" y="488" fill="#fff">🧳</text>
+                        <circle cx="480" cy="492" r="18" fill="#facc15" stroke="#fff" stroke-width="2.5"/><text x="480" y="498" fill="#0f172a" font-weight="900">i</text>
+                    </g>
+                </svg>
+            `;
+        }
+
+        const mapPanState = { scale: 1.15, x: 0, y: 0, dragging: false, startX: 0, startY: 0 };
+
+        function applyStadiumMapTransform() {
+            const inner = document.getElementById('stadium-map-pan-inner');
+            const badge = document.getElementById('stadium-map-zoom-label');
+            if (inner) {
+                inner.style.transform = `translate(${mapPanState.x}px, ${mapPanState.y}px) scale(${mapPanState.scale})`;
+            }
+            if (badge) {
+                badge.textContent = `${Math.round(mapPanState.scale * 100)}%`;
+            }
+        }
+
+        function adjustStadiumMapZoom(delta) {
+            mapPanState.scale = Math.min(2.4, Math.max(0.85, +(mapPanState.scale + delta).toFixed(2)));
+            applyStadiumMapTransform();
+        }
+
+        function resetStadiumMapView() {
+            mapPanState.scale = 1.15;
+            mapPanState.x = 0;
+            mapPanState.y = 0;
+            applyStadiumMapTransform();
+        }
+
+        function initStadiumMapPanZoom() {
+            const viewport = document.getElementById('stadium-map-viewport');
+            if (!viewport) return;
+
+            mapPanState.scale = 1.15;
+            mapPanState.x = 0;
+            mapPanState.y = 0;
+            applyStadiumMapTransform();
+
+            viewport.onmousedown = (e) => {
+                if (e.target.closest('button')) return;
+                e.preventDefault();
+                mapPanState.dragging = true;
+                mapPanState.startX = e.clientX - mapPanState.x;
+                mapPanState.startY = e.clientY - mapPanState.y;
+                viewport.style.cursor = 'grabbing';
+            };
+
+            window.addEventListener('mousemove', (e) => {
+                if (!mapPanState.dragging) return;
+                mapPanState.x = e.clientX - mapPanState.startX;
+                mapPanState.y = e.clientY - mapPanState.startY;
+                applyStadiumMapTransform();
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (!mapPanState.dragging) return;
+                mapPanState.dragging = false;
+                const vp = document.getElementById('stadium-map-viewport');
+                if (vp) vp.style.cursor = 'grab';
+            });
+
+            viewport.onwheel = (e) => {
+                e.preventDefault();
+                const delta = e.deltaY < 0 ? 0.15 : -0.15;
+                adjustStadiumMapZoom(delta);
+            };
         }
 
         function renderMapTab() {
@@ -2010,815 +2526,131 @@
             if (!container) return;
 
             const sid = state.activeStadiumId;
+            const stadium = STADIUMS.find(s => s.id === sid) || STADIUMS[0];
+            const cfg = STADIUM_MAP_CONFIGS[sid] || STADIUM_MAP_CONFIGS.jamsil;
 
-            if (sid === 'nc') {
-                container.innerHTML = `
-                    <div class="w-full rounded-3xl overflow-hidden shadow-xl border-2 border-[#1d467d]/30 bg-gradient-to-b from-[#0b2749] via-[#134074] to-[#dbeafe] text-slate-900">
-                        <!-- Top Banner Header -->
-                        <div class="relative bg-gradient-to-r from-[#091e3a] via-[#123c6e] to-[#091e3a] text-white px-6 py-5 flex items-center justify-between border-b-4 border-[#60a5fa]/40">
-                            <div class="hidden sm:flex items-center gap-2 text-sky-200/70 text-xs font-extrabold tracking-widest">
-                                <i class="fa-solid fa-baseball text-xl text-sky-300"></i>
-                                <span>NC DINOS HOME STADIUM</span>
+            container.innerHTML = `
+                <div class="w-full rounded-3xl overflow-hidden shadow-xl border-2" style="border-color: ${cfg.primary}; background-color: ${cfg.bg};">
+                    <!-- Top Banner -->
+                    <div class="text-white px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b-4" style="background: linear-gradient(90deg, ${cfg.primary}, ${cfg.secondary}, ${cfg.primary}); border-bottom-color: ${cfg.accent};">
+                        <div>
+                            <div class="flex items-center gap-2.5">
+                                <span class="text-xs font-black px-2.5 py-0.5 rounded-full bg-white/15 text-amber-300 border border-white/20">${cfg.homeSide}</span>
+                                <span class="text-xs font-extrabold text-slate-200 tracking-wider">${cfg.teamLabel}</span>
                             </div>
-                            <h3 class="mx-auto font-poster text-2xl sm:text-4xl tracking-wide text-white drop-shadow-md text-center">
-                                창원NC파크 시설 안내도 <span class="text-lg sm:text-2xl font-sans font-extrabold text-sky-200">(참고용)</span>
+                            <h3 class="font-poster text-2xl sm:text-3xl tracking-wide text-white mt-1">
+                                ${stadium.name} 내·외부 통합 시설 안내도
                             </h3>
-                            <div class="hidden sm:block text-right font-poster text-sky-200 text-sm sm:text-base leading-tight tracking-wider">
-                                CHANGWON<br>NC PARK
-                            </div>
                         </div>
-
-                        <!-- Main Content Grid -->
-                        <div class="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-                            <div class="lg:col-span-9 bg-white/95 rounded-2xl p-3 sm:p-4 shadow-lg border border-sky-200 flex flex-col justify-between">
-                                <div class="relative w-full rounded-xl overflow-hidden bg-[#1e3a5f] border border-slate-200">
-                                    <svg viewBox="0 0 920 520" class="w-full h-auto block select-none">
-                                        <defs>
-                                            <radialGradient id="nc-grass" cx="50%" cy="55%" r="55%">
-                                                <stop offset="0%" stop-color="#4ade80"/>
-                                                <stop offset="100%" stop-color="#15803d"/>
-                                            </radialGradient>
-                                            <linearGradient id="nc-roof" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                <stop offset="0%" stop-color="#f8fafc"/>
-                                                <stop offset="100%" stop-color="#cbd5e1"/>
-                                            </linearGradient>
-                                        </defs>
-                                        <rect width="920" height="520" fill="#dbeafe"/>
-                                        <path d="M 35,280 Q 60,70 460,55 Q 860,70 885,280 Q 865,485 460,495 Q 55,485 35,280 Z" fill="#cbd5e1" stroke="#94a3b8" stroke-width="3"/>
-                                        <path d="M 75,280 Q 100,100 460,85 Q 820,100 845,280 Q 825,455 460,465 Q 95,455 75,280 Z" fill="#e2e8f0"/>
-                                        <g fill="#22c55e" opacity="0.85">
-                                            <circle cx="88" cy="185" r="14"/><circle cx="72" cy="215" r="12"/><circle cx="65" cy="255" r="15"/>
-                                            <circle cx="68" cy="305" r="13"/><circle cx="85" cy="345" r="15"/><circle cx="115" cy="385" r="14"/>
-                                            <circle cx="160" cy="425" r="13"/><circle cx="835" cy="175" r="13"/><circle cx="855" cy="220" r="14"/>
-                                            <circle cx="852" cy="325" r="14"/><circle cx="820" cy="375" r="13"/>
-                                        </g>
-                                        <path d="M 190,260 C 190,115 730,115 730,260 C 730,415 585,455 460,455 C 335,455 190,415 190,260 Z" fill="url(#nc-roof)" stroke="#475569" stroke-width="3"/>
-                                        <path d="M 230,255 C 230,135 690,135 690,255 C 690,385 565,422 460,422 C 355,422 230,385 230,255 Z" fill="#1d4ed8" stroke="#1e3a8a" stroke-width="2.5"/>
-                                        <path d="M 262,255 C 262,155 658,155 658,255 C 658,365 550,396 460,396 C 370,396 262,365 262,255 Z" fill="#2563eb" stroke="#93c5fd" stroke-width="1.5"/>
-                                        <path d="M 285,250 C 285,168 635,168 635,250 L 545,355 Q 460,392 375,355 Z" fill="url(#nc-grass)" stroke="#ffffff" stroke-width="2"/>
-                                        <path d="M 460,366 L 378,292 Q 460,235 542,292 Z" fill="#b45309"/>
-                                        <polygon points="460,348 402,295 460,248 518,295" fill="#16a34a"/>
-                                        <circle cx="460" cy="296" r="14" fill="#b45309"/>
-                                        <polygon points="460,354 466,359 464,365 456,365 454,359" fill="#ffffff"/>
-                                        <rect x="514" y="291" width="8" height="8" fill="#ffffff" transform="rotate(45 518 295)"/>
-                                        <rect x="456" y="244" width="8" height="8" fill="#ffffff" transform="rotate(45 460 248)"/>
-                                        <rect x="398" y="291" width="8" height="8" fill="#ffffff" transform="rotate(45 402 295)"/>
-
-                                        <g transform="translate(382, 16)">
-                                            <rect width="156" height="46" rx="10" fill="#1e293b" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="78" y="21" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="900">외야 출입구</text>
-                                            <text x="78" y="39" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="12" font-weight="800">(외야)</text>
-                                            <polygon points="78,52 66,68 74,68 74,80 82,80 82,68 90,68" fill="#1d4ed8" stroke="#ffffff" stroke-width="1.5"/>
-                                        </g>
-                                        <g transform="translate(115, 58)">
-                                            <rect width="184" height="54" rx="14" fill="#ffffff" stroke="#f43f5e" stroke-width="2.5"/>
-                                            <circle cx="28" cy="27" r="18" fill="#f43f5e"/>
-                                            <text x="28" y="33" text-anchor="middle" fill="#ffffff" font-size="16">🎁</text>
-                                            <text x="112" y="24" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="15" font-weight="900">굿즈샵</text>
-                                            <text x="112" y="42" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11.5" font-weight="700">(위치 확인 필요)</text>
-                                        </g>
-                                        <g transform="translate(650, 56)">
-                                            <rect width="54" height="54" rx="14" fill="#ffffff" stroke="#2563eb" stroke-width="2.5"/>
-                                            <circle cx="27" cy="27" r="19" fill="#2563eb"/>
-                                            <text x="27" y="33" text-anchor="middle" fill="#ffffff" font-size="16">🚻</text>
-                                        </g>
-                                        <g transform="translate(18, 198)">
-                                            <rect width="142" height="46" rx="10" fill="#1e293b" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="71" y="21" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="900">3루 출입구</text>
-                                            <text x="71" y="39" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="12" font-weight="800">(3루)</text>
-                                            <polygon points="148,23 164,11 164,19 178,19 178,27 164,27 164,35" fill="#1d4ed8" stroke="#ffffff" stroke-width="1.5"/>
-                                        </g>
-                                        <g transform="translate(758, 194)">
-                                            <rect width="142" height="46" rx="10" fill="#1e293b" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="71" y="21" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="900">1루 출입구</text>
-                                            <text x="71" y="39" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="12" font-weight="800">(1루)</text>
-                                            <polygon points="-6,23 -22,11 -22,19 -36,19 -36,27 -22,27 -22,35" fill="#1d4ed8" stroke="#ffffff" stroke-width="1.5"/>
-                                        </g>
-                                        <g transform="translate(88, 304)">
-                                            <rect width="188" height="54" rx="14" fill="#ffffff" stroke="#8b5cf6" stroke-width="2.5"/>
-                                            <circle cx="28" cy="27" r="18" fill="#8b5cf6"/>
-                                            <text x="28" y="33" text-anchor="middle" fill="#ffffff" font-size="16">🧳</text>
-                                            <text x="114" y="24" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="14.5" font-weight="900">물품보관함</text>
-                                            <text x="114" y="42" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11.5" font-weight="700">(위치 확인 필요)</text>
-                                        </g>
-                                        <g transform="translate(182, 434)">
-                                            <rect width="184" height="54" rx="14" fill="#ffffff" stroke="#16a34a" stroke-width="2.5"/>
-                                            <circle cx="28" cy="27" r="18" fill="#16a34a"/>
-                                            <text x="28" y="33" text-anchor="middle" fill="#ffffff" font-size="16">🚬</text>
-                                            <text x="112" y="24" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="14.5" font-weight="900">흡연구역</text>
-                                            <text x="112" y="42" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11.5" font-weight="700">(위치 확인 필요)</text>
-                                        </g>
-                                        <g transform="translate(382, 444)">
-                                            <polygon points="78,-26 64,-8 73,-8 73,4 83,4 83,-8 92,-8" fill="#1d4ed8" stroke="#ffffff" stroke-width="1.5"/>
-                                            <rect y="4" width="156" height="48" rx="10" fill="#1e293b" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="78" y="25" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="15" font-weight="900">정문</text>
-                                            <text x="78" y="43" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="12" font-weight="800">(중앙 출입구)</text>
-                                        </g>
-                                        <g transform="translate(556, 434)">
-                                            <rect width="188" height="54" rx="14" fill="#ffffff" stroke="#f59e0b" stroke-width="2.5"/>
-                                            <circle cx="28" cy="27" r="18" fill="#f59e0b"/>
-                                            <text x="28" y="33" text-anchor="middle" fill="#ffffff" font-family="serif" font-size="18" font-weight="900">i</text>
-                                            <text x="114" y="24" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="14.5" font-weight="900">안내데스크</text>
-                                            <text x="114" y="42" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11.5" font-weight="700">(위치 확인 필요)</text>
-                                        </g>
-                                        <g transform="translate(712, 268)">
-                                            <rect width="184" height="54" rx="14" fill="#ffffff" stroke="#ec4899" stroke-width="2.5"/>
-                                            <circle cx="28" cy="27" r="18" fill="#ec4899"/>
-                                            <text x="28" y="33" text-anchor="middle" fill="#ffffff" font-size="16">🎟️</text>
-                                            <text x="112" y="24" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="14.5" font-weight="900">매표소</text>
-                                            <text x="112" y="42" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11.5" font-weight="700">(위치 확인 필요)</text>
-                                        </g>
-                                        <g transform="translate(712, 344)">
-                                            <rect width="184" height="54" rx="14" fill="#ffffff" stroke="#a855f7" stroke-width="2.5"/>
-                                            <circle cx="28" cy="27" r="18" fill="#a855f7"/>
-                                            <text x="28" y="33" text-anchor="middle" fill="#ffffff" font-size="16">🍼</text>
-                                            <text x="112" y="24" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="14.5" font-weight="900">수유실</text>
-                                            <text x="112" y="42" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11.5" font-weight="700">(위치 확인 필요)</text>
-                                        </g>
-                                    </svg>
-                                </div>
-                            </div>
-
-                            <!-- Right Sidebar -->
-                            <div class="lg:col-span-3 bg-white rounded-2xl overflow-hidden shadow-lg border-2 border-[#1d467d]/30 flex flex-col">
-                                <div class="bg-[#0f2f57] text-white py-3.5 px-4 text-center font-extrabold text-lg tracking-wide">주요 시설 안내</div>
-                                <div class="p-4 divide-y divide-slate-200 flex-1 flex flex-col justify-between">
-                                    ${buildFacilityLegendHTML([
-                                        { icon: '🎁', bg: 'bg-rose-500', label: '굿즈샵' },
-                                        { icon: '🚻', bg: 'bg-blue-600', label: '화장실' },
-                                        { icon: 'i', bg: 'bg-amber-400', text: 'text-slate-950 font-serif', label: '안내데스크' },
-                                        { icon: '🎟️', bg: 'bg-pink-500', label: '매표소' },
-                                        { icon: '⬆️', bg: 'bg-slate-900', label: '출입구' },
-                                        { icon: '🧳', bg: 'bg-sky-600', label: '물품보관함' },
-                                        { icon: '🍼', bg: 'bg-purple-600', label: '수유실' },
-                                        { icon: '🚬', bg: 'bg-emerald-600', label: '흡연구역' },
-                                        { icon: '🏃', bg: 'bg-green-600', label: '피난계획도' }
-                                    ])}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Bottom Section -->
-                        <div class="px-4 sm:px-6 pb-6 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-                            <div class="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                                ${['1층', '2층', '3층'].map((floor, idx) => `
-                                    <div class="bg-white rounded-2xl overflow-hidden shadow-md border-2 border-[#1d467d]/30 flex flex-col">
-                                        <div class="bg-[#0f2f57] text-white py-2 text-center font-extrabold text-sm sm:text-base">${floor}</div>
-                                        <div class="p-3 flex items-center justify-between gap-2 flex-1 bg-slate-50">
-                                            <svg viewBox="0 0 140 110" class="w-28 h-24 shrink-0">
-                                                <ellipse cx="70" cy="56" rx="62" ry="46" fill="#cbd5e1" stroke="#64748b" stroke-width="2"/>
-                                                <ellipse cx="70" cy="56" rx="46" ry="33" fill="${idx === 0 ? '#86efac' : idx === 1 ? '#bbf7d0' : '#dcfce7'}" stroke="#475569" stroke-width="1.5"/>
-                                                <polygon points="70,82 48,60 70,38 92,60" fill="#d97706" opacity="0.75"/>
-                                                <polygon points="70,76 54,60 70,45 86,60" fill="#22c55e"/>
-                                            </svg>
-                                            <div class="flex items-start gap-1.5 pr-1">
-                                                <span class="w-5 h-5 rounded-full bg-rose-600 text-white text-xs font-black flex items-center justify-center shrink-0 mt-0.5">!</span>
-                                                <span class="text-xs sm:text-sm font-extrabold text-slate-800 leading-snug">시설 위치<br>확인 필요</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                            <div class="lg:col-span-4 bg-sky-50/95 rounded-2xl p-4 sm:p-5 shadow-md border-2 border-[#1d467d]/30 flex flex-col justify-center">
-                                <div class="flex items-center gap-2 font-extrabold text-base sm:text-lg text-[#0f2f57] mb-2.5">
-                                    <span class="w-6 h-6 rounded-full bg-[#1d4ed8] text-white text-xs font-black flex items-center justify-center shrink-0">!</span>
-                                    <span>이용 시 참고해주세요!</span>
-                                </div>
-                                <ul class="space-y-1.5 text-xs sm:text-sm font-bold text-slate-700 leading-relaxed">
-                                    <li>• 세부 위치는 현장 안내를 확인해주세요.</li>
-                                    <li>• 일부 시설은 층별로 위치가 상이할 수 있습니다.</li>
-                                    <li>• 피난계획도는 1층, 2층, 3층을 참고해주세요.</li>
-                                </ul>
-                            </div>
+                        <div class="text-xs sm:text-sm font-bold text-slate-200 sm:text-right">
+                            <div>${cfg.subtitle}</div>
+                            <div class="text-amber-300 font-extrabold mt-0.5">📍 ${cfg.address} · 👥 ${stadium.capacity}</div>
                         </div>
                     </div>
-                `;
-            } else if (sid === 'gocheok') {
-                container.innerHTML = `
-                    <div class="w-full rounded-3xl overflow-hidden shadow-xl border-2 border-[#6b0f2b]/30 bg-gradient-to-b from-[#4c0519] via-[#701a35] to-[#fce7f3] text-slate-900">
-                        <!-- Top Banner Header -->
-                        <div class="relative bg-gradient-to-r from-[#4c0519] via-[#7f1d3a] to-[#4c0519] text-white px-6 py-5 flex items-center justify-between border-b-4 border-rose-300/30">
-                            <div class="hidden sm:flex items-center gap-2 font-poster text-xl tracking-wider text-white">
-                                <span class="bg-white text-[#7f1d3a] px-2.5 py-0.5 rounded text-sm">KIWOOM</span>
-                                <span class="text-rose-200 text-xs">HEROES</span>
-                            </div>
-                            <h3 class="mx-auto font-poster text-2xl sm:text-4xl tracking-wide text-white drop-shadow-md text-center">
-                                고척스카이돔 시설 안내도 <span class="text-lg sm:text-2xl font-sans font-extrabold text-rose-200">(구장 내부 기준)</span>
-                            </h3>
-                            <div class="hidden sm:block text-right font-poster text-rose-200 text-sm leading-tight tracking-wider">
-                                KIWOOM<br>HEROES
-                            </div>
-                        </div>
 
-                        <!-- Main Grid -->
-                        <div class="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-                            <div class="lg:col-span-9 bg-white/95 rounded-2xl p-3 sm:p-4 shadow-lg border border-rose-200 flex flex-col justify-between">
-                                <div class="relative w-full rounded-xl overflow-hidden bg-slate-200 border border-slate-300">
-                                    <svg viewBox="0 0 920 520" class="w-full h-auto block select-none">
-                                        <rect width="920" height="520" fill="#e2e8f0"/>
-                                        <!-- Elevated Walkway Rings -->
-                                        <ellipse cx="460" cy="260" rx="370" ry="230" fill="none" stroke="#94a3b8" stroke-width="26"/>
-                                        <ellipse cx="460" cy="260" rx="370" ry="230" fill="none" stroke="#f1f5f9" stroke-width="20"/>
-                                        <!-- Dome Outer Ring -->
-                                        <ellipse cx="460" cy="260" rx="285" ry="205" fill="#f8fafc" stroke="#64748b" stroke-width="4"/>
-                                        <ellipse cx="460" cy="260" rx="242" ry="172" fill="#1e3a8a" stroke="#334155" stroke-width="2.5"/>
-                                        <ellipse cx="460" cy="260" rx="205" ry="145" fill="#2563eb" stroke="#93c5fd" stroke-width="1.5"/>
-                                        <!-- Field -->
-                                        <path d="M 295,250 C 295,155 625,155 625,250 L 542,350 Q 460,388 378,350 Z" fill="#16a34a" stroke="#ffffff" stroke-width="2"/>
-                                        <path d="M 460,362 L 382,290 Q 460,234 538,290 Z" fill="#b45309"/>
-                                        <polygon points="460,344 405,292 460,246 515,292" fill="#22c55e"/>
-                                        <circle cx="460" cy="294" r="13" fill="#b45309"/>
-                                        <polygon points="460,350 466,355 464,361 456,361 454,355" fill="#ffffff"/>
-                                        <rect x="511" y="288" width="8" height="8" fill="#ffffff" transform="rotate(45 515 292)"/>
-                                        <rect x="456" y="242" width="8" height="8" fill="#ffffff" transform="rotate(45 460 246)"/>
-                                        <rect x="401" y="288" width="8" height="8" fill="#ffffff" transform="rotate(45 405 292)"/>
-
-                                        <!-- 게이트 E (외야) -->
-                                        <g transform="translate(390, 14)">
-                                            <rect width="140" height="44" rx="10" fill="#6b0f2b" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="70" y="20" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="900">게이트 E</text>
-                                            <text x="70" y="37" text-anchor="middle" fill="#fecdd3" font-family="sans-serif" font-size="12" font-weight="800">(외야)</text>
-                                            <polygon points="70,74 58,58 66,58 66,46 74,46 74,58 82,58" fill="#be123c" stroke="#ffffff" stroke-width="1.5"/>
-                                        </g>
-                                        <!-- 게이트 D (3루) -->
-                                        <g transform="translate(26, 155)">
-                                            <rect width="128" height="44" rx="10" fill="#6b0f2b" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="64" y="20" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="900">게이트 D</text>
-                                            <text x="64" y="37" text-anchor="middle" fill="#fecdd3" font-family="sans-serif" font-size="12" font-weight="800">(3루)</text>
-                                            <polygon points="158,22 142,10 142,18 130,18 130,26 142,26 142,34" fill="#be123c" stroke="#ffffff" stroke-width="1.5"/>
-                                        </g>
-                                        <!-- 게이트 B (1루) -->
-                                        <g transform="translate(766, 162)">
-                                            <rect width="128" height="44" rx="10" fill="#6b0f2b" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="64" y="20" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="900">게이트 B</text>
-                                            <text x="64" y="37" text-anchor="middle" fill="#fecdd3" font-family="sans-serif" font-size="12" font-weight="800">(1루)</text>
-                                            <polygon points="-30,22 -14,10 -14,18 -2,18 -2,26 -14,26 -14,34" fill="#be123c" stroke="#ffffff" stroke-width="1.5"/>
-                                        </g>
-                                        <!-- 게이트 C (중앙, 스카이박스 전용) -->
-                                        <g transform="translate(362, 456)">
-                                            <polygon points="98,-26 84,-8 93,-8 93,4 103,4 103,-8 112,-8" fill="#be123c" stroke="#ffffff" stroke-width="1.5"/>
-                                            <rect y="4" width="196" height="46" rx="10" fill="#6b0f2b" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="98" y="24" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="900">게이트 C</text>
-                                            <text x="98" y="41" text-anchor="middle" fill="#fecdd3" font-family="sans-serif" font-size="11.5" font-weight="800">(중앙, 스카이박스 전용)</text>
-                                        </g>
-                                        <!-- 히어로즈샵 (굿즈샵) -->
-                                        <g transform="translate(132, 342)">
-                                            <rect width="176" height="52" rx="14" fill="#ffffff" stroke="#e11d48" stroke-width="2.5"/>
-                                            <circle cx="26" cy="26" r="17" fill="#e11d48"/>
-                                            <text x="26" y="32" text-anchor="middle" fill="#ffffff" font-size="15">🛍️</text>
-                                            <text x="108" y="23" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="14" font-weight="900">히어로즈샵</text>
-                                            <text x="108" y="40" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11.5" font-weight="700">(굿즈샵)</text>
-                                        </g>
-                                        <!-- 매표소 (외부) -->
-                                        <g transform="translate(612, 396)">
-                                            <rect width="166" height="50" rx="14" fill="#ffffff" stroke="#ec4899" stroke-width="2.5"/>
-                                            <circle cx="25" cy="25" r="16" fill="#ec4899"/>
-                                            <text x="25" y="31" text-anchor="middle" fill="#ffffff" font-size="14">🎟️</text>
-                                            <text x="102" y="22" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="14" font-weight="900">매표소</text>
-                                            <text x="102" y="39" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11.5" font-weight="700">(외부)</text>
-                                        </g>
-                                        <!-- Facility Badges on Concourse -->
-                                        <circle cx="295" cy="84" r="17" fill="#2563eb" stroke="#fff" stroke-width="2"/><text x="295" y="90" text-anchor="middle" fill="#fff" font-size="14">🚻</text>
-                                        <circle cx="625" cy="84" r="17" fill="#2563eb" stroke="#fff" stroke-width="2"/><text x="625" y="90" text-anchor="middle" fill="#fff" font-size="14">🚻</text>
-                                        <circle cx="204" cy="175" r="17" fill="#2563eb" stroke="#fff" stroke-width="2"/><text x="204" y="181" text-anchor="middle" fill="#fff" font-size="14">🚻</text>
-                                        <circle cx="204" cy="216" r="17" fill="#ec4899" stroke="#fff" stroke-width="2"/><text x="204" y="222" text-anchor="middle" fill="#fff" font-size="14">🎟️</text>
-                                        <circle cx="716" cy="235" r="17" fill="#2563eb" stroke="#fff" stroke-width="2"/><text x="716" y="241" text-anchor="middle" fill="#fff" font-size="14">🚻</text>
-                                        <circle cx="716" cy="276" r="17" fill="#f43f5e" stroke="#fff" stroke-width="2"/><text x="716" y="282" text-anchor="middle" fill="#fff" font-size="14">🍼</text>
-                                        <circle cx="332" cy="408" r="17" fill="#2563eb" stroke="#fff" stroke-width="2"/><text x="332" y="414" text-anchor="middle" fill="#fff" font-family="serif" font-size="16" font-weight="900">i</text>
-                                    </svg>
-                                </div>
+                    <!-- Main Map & Legend Grid -->
+                    <div class="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                        <!-- Left: Interactive Draggable & Zoomable Stadium Map (9 cols) -->
+                        <div id="stadium-map-viewport" class="lg:col-span-9 bg-[#dbe4ee] rounded-2xl border-2 border-slate-300 shadow-inner min-h-[540px] sm:min-h-[650px] flex items-center justify-center relative overflow-hidden cursor-grab select-none">
+                            <!-- Top-Left Pan/Zoom Guide Badge -->
+                            <div class="absolute top-3 left-3 z-20 bg-slate-900/85 text-white text-xs sm:text-sm font-extrabold px-3.5 py-2 rounded-xl shadow-md flex items-center gap-2 pointer-events-none backdrop-blur-sm">
+                                <i class="fa-solid fa-hand text-amber-300"></i>
+                                <span>마우스로 드래그해 이동 · 휠로 확대/축소</span>
                             </div>
 
-                            <!-- Right Sidebar -->
-                            <div class="lg:col-span-3 bg-white rounded-2xl overflow-hidden shadow-lg border-2 border-[#6b0f2b]/30 flex flex-col">
-                                <div class="bg-[#6b0f2b] text-white py-3.5 px-4 text-center font-extrabold text-lg tracking-wide">주요 시설 안내</div>
-                                <div class="p-4 divide-y divide-slate-200 flex-1 flex flex-col justify-between">
-                                    ${buildFacilityLegendHTML([
-                                        { icon: '🛍️', bg: 'bg-rose-500', label: '굿즈샵' },
-                                        { icon: '🚻', bg: 'bg-blue-600', label: '화장실' },
-                                        { icon: 'i', bg: 'bg-blue-700', text: 'text-white font-serif', label: '안내데스크' },
-                                        { icon: '🎟️', bg: 'bg-pink-500', label: '매표소' },
-                                        { icon: '⬆️', bg: 'bg-[#6b0f2b]', label: '출입구' },
-                                        { icon: '🧳', bg: 'bg-sky-600', label: '물품보관함' },
-                                        { icon: '🍼', bg: 'bg-rose-400', label: '수유실' },
-                                        { icon: '🚬', bg: 'bg-emerald-600', label: '흡연구역' },
-                                        { icon: '🏃', bg: 'bg-green-600', label: '피난계획도' }
-                                    ])}
-                                </div>
+                            <!-- Top-Right Zoom Controls -->
+                            <div class="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-white/95 p-1.5 rounded-xl shadow-md border border-slate-300">
+                                <button type="button" onclick="adjustStadiumMapZoom(0.2)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-900 font-black text-base flex items-center justify-center transition" title="확대">+</button>
+                                <span id="stadium-map-zoom-label" class="px-2 text-xs font-black text-slate-800 min-w-[44px] text-center">115%</span>
+                                <button type="button" onclick="adjustStadiumMapZoom(-0.2)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-900 font-black text-base flex items-center justify-center transition" title="축소">−</button>
+                                <button type="button" onclick="resetStadiumMapView()" class="px-2.5 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-xs transition" title="원래 위치로">초기화</button>
+                            </div>
+
+                            <!-- Movable & Scalable Map Wrapper -->
+                            <div id="stadium-map-pan-inner" class="w-full h-full flex items-center justify-center transition-transform duration-75 ease-out origin-center">
+                                ${buildDetailedStadiumMapSVG(sid, cfg)}
                             </div>
                         </div>
 
-                        <!-- Bottom Section -->
-                        <div class="px-4 sm:px-6 pb-6 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-                            <!-- 층별 피난계획도 -->
-                            <div class="lg:col-span-4 bg-white rounded-2xl overflow-hidden shadow-md border-2 border-[#6b0f2b]/30 flex flex-col">
-                                <div class="bg-[#6b0f2b] text-white py-2 text-center font-extrabold text-sm sm:text-base">층별 피난계획도</div>
-                                <div class="p-3 grid grid-cols-3 gap-2 flex-1 items-center bg-slate-50">
-                                    ${['1층', '2층', '3층'].map((fl, i) => `
-                                        <div class="text-center">
-                                            <span class="inline-block text-[11px] font-extrabold bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mb-1">${fl}</span>
-                                            <svg viewBox="0 0 100 85" class="w-full h-16">
-                                                <ellipse cx="50" cy="44" rx="44" ry="34" fill="#cbd5e1" stroke="#64748b" stroke-width="1.5"/>
-                                                <ellipse cx="50" cy="44" rx="32" ry="24" fill="${i === 0 ? '#86efac' : i === 1 ? '#bbf7d0' : '#dcfce7'}" stroke="#475569" stroke-width="1"/>
-                                                <polygon points="50,62 34,46 50,30 66,46" fill="#22c55e"/>
-                                            </svg>
-                                        </div>
-                                    `).join('')}
+                        <!-- Right: Interior Facility Legend (3 cols) -->
+                        <div class="lg:col-span-3 flex flex-col justify-between gap-4">
+                            <div class="bg-white rounded-2xl border-2 overflow-hidden shadow-md" style="border-color: ${cfg.primary};">
+                                <div class="text-white text-center font-extrabold py-3.5 text-lg tracking-wide" style="background-color: ${cfg.primary};">
+                                    구장 내부 주요 시설
+                                </div>
+                                <div class="divide-y divide-slate-200 px-4 py-1.5 text-sm sm:text-[15px] font-extrabold text-slate-900">
+                                    <div class="py-2.5 flex items-start gap-3">
+                                        <span class="w-8 h-8 rounded-full text-white text-base flex items-center justify-center shrink-0 mt-0.5" style="background-color: ${cfg.accent};">🛍️</span>
+                                        <div><div class="leading-snug">굿즈샵 · 팀스토어</div><div class="text-xs sm:text-[13px] font-bold text-slate-600 mt-0.5 leading-snug">${cfg.shopLoc}</div></div>
+                                    </div>
+                                    <div class="py-2.5 flex items-start gap-3">
+                                        <span class="w-8 h-8 rounded-full bg-[#0284c7] text-white text-base flex items-center justify-center shrink-0 mt-0.5">🚻</span>
+                                        <div><div class="leading-snug">화장실</div><div class="text-xs sm:text-[13px] font-bold text-slate-600 mt-0.5 leading-snug">전 층 콘코스 양쪽 코너 배치</div></div>
+                                    </div>
+                                    <div class="py-2.5 flex items-start gap-3">
+                                        <span class="w-8 h-8 rounded-full bg-[#facc15] text-slate-900 text-base flex items-center justify-center font-black shrink-0 mt-0.5">i</span>
+                                        <div><div class="leading-snug">안내데스크 · 의무실</div><div class="text-xs sm:text-[13px] font-bold text-slate-600 mt-0.5 leading-snug">${cfg.infoLoc}</div></div>
+                                    </div>
+                                    <div class="py-2.5 flex items-start gap-3">
+                                        <span class="w-8 h-8 rounded-full bg-[#2563eb] text-white text-base flex items-center justify-center shrink-0 mt-0.5">🎫</span>
+                                        <div><div class="leading-snug">매표소 · 무인발권기</div><div class="text-xs sm:text-[13px] font-bold text-slate-600 mt-0.5 leading-snug">${cfg.ticketLoc}</div></div>
+                                    </div>
+                                    <div class="py-2.5 flex items-start gap-3">
+                                        <span class="w-8 h-8 rounded-full bg-[#7e22ce] text-white text-base flex items-center justify-center shrink-0 mt-0.5">🧳</span>
+                                        <div><div class="leading-snug">물품보관함</div><div class="text-xs sm:text-[13px] font-bold text-slate-600 mt-0.5 leading-snug">${cfg.lockerLoc}</div></div>
+                                    </div>
+                                    <div class="py-2.5 flex items-start gap-3">
+                                        <span class="w-8 h-8 rounded-full bg-[#ec4899] text-white text-base flex items-center justify-center shrink-0 mt-0.5">🍼</span>
+                                        <div><div class="leading-snug">수유실 · 가족편의</div><div class="text-xs sm:text-[13px] font-bold text-slate-600 mt-0.5 leading-snug">${cfg.nursingLoc}</div></div>
+                                    </div>
+                                    <div class="py-2.5 flex items-start gap-3">
+                                        <span class="w-8 h-8 rounded-full bg-[#16a34a] text-white text-base flex items-center justify-center shrink-0 mt-0.5">🚬</span>
+                                        <div><div class="leading-snug">흡연구역</div><div class="text-xs sm:text-[13px] font-bold text-slate-600 mt-0.5 leading-snug">${cfg.smokeLoc}</div></div>
+                                    </div>
+                                    <div class="py-2.5 flex items-start gap-3">
+                                        <span class="w-8 h-8 rounded-md bg-[#16a34a] text-white text-base flex items-center justify-center shrink-0 mt-0.5">🏃</span>
+                                        <div><div class="leading-snug">피난 · 대피 동선</div><div class="text-xs sm:text-[13px] font-bold text-slate-600 mt-0.5 leading-snug">${cfg.evacLoc}</div></div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- 안내사항 -->
-                            <div class="lg:col-span-4 bg-white rounded-2xl overflow-hidden shadow-md border-2 border-[#6b0f2b]/30 flex flex-col">
-                                <div class="bg-[#6b0f2b] text-white py-2 text-center font-extrabold text-sm sm:text-base flex items-center justify-center gap-1.5">
-                                    <i class="fa-solid fa-bullhorn"></i> 안내사항
-                                </div>
-                                <ul class="p-4 space-y-2 text-xs sm:text-sm font-bold text-slate-700 flex-1 flex flex-col justify-center">
-                                    <li>✔ 정확한 위치는 현장 안내를 확인해주세요.</li>
-                                    <li>✔ 일부 시설은 층별로 위치가 상이할 수 있습니다.</li>
-                                    <li>✔ 피난계획도는 3층, 4층, 5층에 제공됩니다.</li>
-                                </ul>
-                            </div>
-
-                            <!-- 이용 시 참고해주세요! -->
-                            <div class="lg:col-span-4 bg-rose-50 rounded-2xl p-4 shadow-md border-2 border-rose-300 flex flex-col justify-center">
-                                <div class="flex items-center gap-2 font-extrabold text-base text-[#6b0f2b] mb-2">
-                                    <span class="w-6 h-6 rounded-full bg-[#6b0f2b] text-white text-xs font-black flex items-center justify-center shrink-0">!</span>
-                                    <span>이용 시 참고해주세요!</span>
-                                </div>
-                                <p class="text-xs sm:text-sm font-bold text-slate-700 leading-relaxed">
-                                    일부 시설의 위치는 변동될 수 있으며, 피난계획도는 실제와 다를 수 있습니다. 반드시 현장 안내 표지판을 확인해주세요.
+                            <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-3.5 text-center shadow-sm">
+                                <div class="text-amber-800 font-black text-xs mb-1">💡 직관 동선 핵심 체크</div>
+                                <p class="text-[11px] text-slate-700 font-bold leading-relaxed">
+                                    구장 외부 광장·지하철역 동선과 내부 게이트 번호를 미리 확인하시면 입장 및 퇴장 시간을 15분 이상 단축할 수 있습니다.
                                 </p>
                             </div>
                         </div>
                     </div>
-                `;
-            } else if (sid === 'hanwha') {
-                container.innerHTML = `
-                    <div class="w-full rounded-3xl overflow-hidden shadow-xl border-2 border-[#0f2942]/30 bg-gradient-to-b from-[#0b1f3a] via-[#13355e] to-[#ffedd5] text-slate-900">
-                        <!-- Top Banner Header -->
-                        <div class="relative bg-gradient-to-r from-[#09192f] via-[#102e52] to-[#09192f] text-white px-6 py-5 flex items-center justify-between border-b-4 border-[#fc4e00]">
-                            <div class="hidden sm:flex items-center gap-2 text-[#fc4e00] font-poster text-xl tracking-wider">
-                                <i class="fa-solid fa-dove text-2xl"></i>
-                                <span>HANWHA EAGLES</span>
-                            </div>
-                            <h3 class="mx-auto font-poster text-2xl sm:text-4xl tracking-wide text-white drop-shadow-md text-center">
-                                한화생명볼파크 시설 안내도 <span class="text-lg sm:text-2xl font-sans font-extrabold text-orange-300">(참고용)</span>
-                            </h3>
-                            <div class="hidden sm:flex items-center gap-1.5 text-orange-300 font-extrabold text-xs">
-                                <i class="fa-solid fa-baseball text-2xl text-[#fc4e00]"></i>
-                            </div>
+
+                    <!-- Bottom Exterior Guide Cards (4 Columns: Transit, Parking, Exterior Food, Plaza/Gates) -->
+                    <div class="px-4 sm:px-6 pb-6">
+                        <div class="text-base sm:text-lg font-black text-slate-800 tracking-wide mb-3.5 flex items-center gap-2">
+                            <i class="fa-solid fa-compass text-clay text-lg"></i> 야구장 외부 교통 · 주차 · 먹거리 · 광장 상세 가이드
                         </div>
-
-                        <!-- Main Grid -->
-                        <div class="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-                            <div class="lg:col-span-9 bg-white/95 rounded-2xl p-3 sm:p-4 shadow-lg border border-orange-200 flex flex-col justify-between">
-                                <div class="relative w-full rounded-xl overflow-hidden bg-slate-200 border border-slate-300">
-                                    <svg viewBox="0 0 920 520" class="w-full h-auto block select-none">
-                                        <rect width="920" height="520" fill="#e2e8f0"/>
-                                        <!-- Roads & Plaza -->
-                                        <path d="M 40,340 L 320,495 M 640,495 L 880,260" stroke="#94a3b8" stroke-width="26"/>
-                                        <path d="M 40,340 L 320,495 M 640,495 L 880,260" stroke="#f8fafc" stroke-width="2" stroke-dasharray="10,8"/>
-                                        <!-- Ballpark Outer Structure -->
-                                        <path d="M 190,245 C 190,95 730,95 730,245 C 730,395 585,435 460,435 C 335,435 190,395 190,245 Z" fill="#f8fafc" stroke="#475569" stroke-width="3"/>
-                                        <path d="M 225,245 C 225,120 695,120 695,245 C 695,368 565,405 460,405 C 355,405 225,368 225,245 Z" fill="#1e3a8a" stroke="#172554" stroke-width="2"/>
-                                        <path d="M 255,245 C 255,142 665,142 665,245 C 665,348 550,382 460,382 C 370,382 255,348 255,245 Z" fill="#2563eb" stroke="#93c5fd" stroke-width="1.5"/>
-                                        <!-- Field -->
-                                        <path d="M 285,242 C 285,158 635,158 635,242 L 542,346 Q 460,382 378,346 Z" fill="#16a34a" stroke="#ffffff" stroke-width="2"/>
-                                        <path d="M 460,356 L 382,286 Q 460,232 538,286 Z" fill="#b45309"/>
-                                        <polygon points="460,338 405,288 460,244 515,288" fill="#22c55e"/>
-                                        <circle cx="460" cy="290" r="13" fill="#b45309"/>
-                                        <polygon points="460,344 466,349 464,355 456,355 454,349" fill="#ffffff"/>
-                                        <rect x="511" y="284" width="8" height="8" fill="#ffffff" transform="rotate(45 515 288)"/>
-                                        <rect x="456" y="240" width="8" height="8" fill="#ffffff" transform="rotate(45 460 244)"/>
-                                        <rect x="401" y="284" width="8" height="8" fill="#ffffff" transform="rotate(45 405 288)"/>
-
-                                        <!-- 출입구 (4-2) (외야) -->
-                                        <g transform="translate(390, 12)">
-                                            <rect width="140" height="54" rx="10" fill="#0f2942" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="70" y="19" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="900">출입구</text>
-                                            <text x="70" y="34" text-anchor="middle" fill="#fdba74" font-family="sans-serif" font-size="12" font-weight="800">(4-2)</text>
-                                            <text x="70" y="49" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="11" font-weight="800">(외야)</text>
-                                            <polygon points="70,60 58,76 66,76 66,88 74,88 74,76 82,76" fill="#fc4e00" stroke="#ffffff" stroke-width="1.5"/>
-                                        </g>
-                                        <!-- 팬샵·마킹샵 (2층) -->
-                                        <g transform="translate(598, 56)">
-                                            <rect width="196" height="52" rx="14" fill="#ffffff" stroke="#ec4899" stroke-width="2.5"/>
-                                            <circle cx="26" cy="26" r="17" fill="#ec4899"/>
-                                            <text x="26" y="32" text-anchor="middle" fill="#ffffff" font-size="15">👕</text>
-                                            <text x="116" y="23" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="14" font-weight="900">팬샵·마킹샵</text>
-                                            <text x="116" y="40" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11.5" font-weight="700">(2층)</text>
-                                        </g>
-                                        <!-- 출입구 (1-2) (GS게이트, 1루측) -->
-                                        <g transform="translate(752, 165)">
-                                            <rect width="152" height="58" rx="10" fill="#0f2942" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="76" y="19" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="900">출입구 (1-2)</text>
-                                            <text x="76" y="35" text-anchor="middle" fill="#fdba74" font-family="sans-serif" font-size="11.5" font-weight="800">(GS게이트,</text>
-                                            <text x="76" y="50" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="11" font-weight="800">1루측)</text>
-                                            <polygon points="-32,29 -16,17 -16,25 -4,25 -4,33 -16,33 -16,41" fill="#fc4e00" stroke="#ffffff" stroke-width="1.5"/>
-                                        </g>
-                                        <!-- 출입구 (1-1) (멤버십 전용, 1루측) -->
-                                        <g transform="translate(736, 286)">
-                                            <rect width="166" height="58" rx="10" fill="#0f2942" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="83" y="19" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="900">출입구 (1-1)</text>
-                                            <text x="83" y="35" text-anchor="middle" fill="#fdba74" font-family="sans-serif" font-size="11.5" font-weight="800">(멤버십 전용,</text>
-                                            <text x="83" y="50" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="11" font-weight="800">1루측)</text>
-                                            <polygon points="-32,22 -16,10 -16,18 -4,18 -4,26 -16,26 -16,34" fill="#fc4e00" stroke="#ffffff" stroke-width="1.5"/>
-                                        </g>
-                                        <!-- 출입구 (3-1) (3루측) -->
-                                        <g transform="translate(18, 178)">
-                                            <rect width="134" height="54" rx="10" fill="#0f2942" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="67" y="19" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="900">출입구</text>
-                                            <text x="67" y="34" text-anchor="middle" fill="#fdba74" font-family="sans-serif" font-size="12" font-weight="800">(3-1)</text>
-                                            <text x="67" y="49" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="11" font-weight="800">(3루측)</text>
-                                            <polygon points="166,27 150,15 150,23 138,23 138,31 150,31 150,39" fill="#fc4e00" stroke="#ffffff" stroke-width="1.5"/>
-                                        </g>
-                                        <!-- 출입구 (사회적 배려 게이트) -->
-                                        <g transform="translate(122, 355)">
-                                            <rect width="192" height="54" rx="10" fill="#0f2942" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="96" y="19" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="900">출입구</text>
-                                            <text x="96" y="34" text-anchor="middle" fill="#fdba74" font-family="sans-serif" font-size="11.5" font-weight="800">(사회적 배려 게이트)</text>
-                                            <text x="96" y="49" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="11" font-weight="800">(메인게이트 옆)</text>
-                                        </g>
-                                        <!-- 매표소 (구장 외부) -->
-                                        <g transform="translate(16, 444)">
-                                            <rect width="176" height="50" rx="14" fill="#ffffff" stroke="#f97316" stroke-width="2.5"/>
-                                            <circle cx="25" cy="25" r="16" fill="#f97316"/>
-                                            <text x="25" y="31" text-anchor="middle" fill="#ffffff" font-size="14">🎟️</text>
-                                            <text x="106" y="22" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="14" font-weight="900">매표소</text>
-                                            <text x="106" y="39" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11.5" font-weight="700">(구장 외부)</text>
-                                        </g>
-                                        <!-- 메인 게이트 (한화생명 게이트) -->
-                                        <g transform="translate(362, 446)">
-                                            <polygon points="98,-26 84,-8 93,-8 93,4 103,4 103,-8 112,-8" fill="#fc4e00" stroke="#ffffff" stroke-width="1.5"/>
-                                            <rect y="4" width="196" height="48" rx="10" fill="#0f2942" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="98" y="25" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="900">메인 게이트</text>
-                                            <text x="98" y="42" text-anchor="middle" fill="#fdba74" font-family="sans-serif" font-size="12" font-weight="800">(한화생명 게이트)</text>
-                                        </g>
-                                    </svg>
-                                </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="bg-white rounded-2xl p-5 border border-slate-300 shadow-sm">
+                                <div class="font-extrabold text-slate-900 text-base sm:text-lg mb-1.5">🚇 대중교통 접근 동선</div>
+                                <p class="text-slate-700 text-sm sm:text-[15px] font-bold leading-relaxed">${cfg.outerTransport}</p>
                             </div>
-
-                            <!-- Right Sidebar -->
-                            <div class="lg:col-span-3 bg-white rounded-2xl overflow-hidden shadow-lg border-2 border-[#0f2942]/30 flex flex-col">
-                                <div class="bg-[#0f2942] text-white py-3.5 px-4 text-center font-extrabold text-lg tracking-wide">주요 시설 안내</div>
-                                <div class="p-4 divide-y divide-slate-200 flex-1 flex flex-col justify-between">
-                                    ${buildFacilityLegendHTML([
-                                        { icon: '👕', bg: 'bg-orange-500', label: '굿즈샵 / 팬샵·마킹샵 (2층)' },
-                                        { icon: '🚻', bg: 'bg-blue-600', label: '화장실 (1~4층)' },
-                                        { icon: 'i', bg: 'bg-amber-400', text: 'text-slate-950 font-serif', label: '안내데스크', sub: ': 공식 위치 확인 필요' },
-                                        { icon: '🎟️', bg: 'bg-pink-500', label: '매표소 (구장 외부)' },
-                                        { icon: '🏃', bg: 'bg-emerald-600', label: '출입구', sub: '(메인·1-1·1-2·3-1·4-2·사회적 배려)' },
-                                        { icon: '🧳', bg: 'bg-purple-600', label: '물품보관함', sub: ': 공식 위치 확인 필요' },
-                                        { icon: '🍼', bg: 'bg-rose-400', label: '수유실 (1층·2층)' },
-                                        { icon: '🚬', bg: 'bg-green-600', label: '흡연구역', sub: ': 공식 위치 확인 필요' },
-                                        { icon: '🚪', bg: 'bg-teal-600', label: '피난계획도', sub: ': 공식 위치 확인 필요' }
-                                    ])}
-                                </div>
+                            <div class="bg-white rounded-2xl p-5 border border-slate-300 shadow-sm">
+                                <div class="font-extrabold text-slate-900 text-base sm:text-lg mb-1.5">🅿️ 외부 주차장 안내</div>
+                                <p class="text-slate-700 text-sm sm:text-[15px] font-bold leading-relaxed">${cfg.outerParking}</p>
                             </div>
-                        </div>
-
-                        <!-- Bottom Section: 1층 / 2층 / 3층 / 4층 + Notice -->
-                        <div class="px-4 sm:px-6 pb-6 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-                            <div class="lg:col-span-9 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                ${[
-                                    { floor: '1층', facilities: ['🚻 화장실', '🍼 수유실'] },
-                                    { floor: '2층', facilities: ['🚻 화장실', '🍼 수유실'] },
-                                    { floor: '3층', facilities: ['🚻 화장실'] },
-                                    { floor: '4층', facilities: ['🚻 화장실'] }
-                                ].map(item => `
-                                    <div class="bg-white rounded-2xl overflow-hidden shadow-md border-2 border-[#0f2942]/30 flex flex-col">
-                                        <div class="bg-[#0f2942] text-white py-1.5 text-center font-extrabold text-sm">${item.floor}</div>
-                                        <div class="p-3 flex items-center justify-between gap-2 flex-1 bg-slate-50">
-                                            <svg viewBox="0 0 110 95" class="w-20 h-20 shrink-0">
-                                                <ellipse cx="55" cy="48" rx="48" ry="38" fill="#cbd5e1" stroke="#64748b" stroke-width="1.5"/>
-                                                <ellipse cx="55" cy="48" rx="34" ry="26" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1"/>
-                                            </svg>
-                                            <div class="space-y-1.5 pr-1">
-                                                ${item.facilities.map(f => `<div class="text-xs font-extrabold text-slate-800">${f}</div>`).join('')}
-                                            </div>
-                                        </div>
-                                    </div>
-                                `).join('')}
+                            <div class="bg-white rounded-2xl p-5 border border-slate-300 shadow-sm">
+                                <div class="font-extrabold text-slate-900 text-base sm:text-lg mb-1.5">🍗 구장 외부 먹자골목</div>
+                                <p class="text-slate-700 text-sm sm:text-[15px] font-bold leading-relaxed">${cfg.outerFood}</p>
                             </div>
-
-                            <div class="lg:col-span-3 bg-orange-50 rounded-2xl p-4 shadow-md border-2 border-[#fc4e00]/50 flex flex-col justify-center">
-                                <div class="flex items-center gap-2 font-extrabold text-sm sm:text-base text-[#0f2942] mb-1.5">
-                                    <span class="w-6 h-6 rounded-full bg-rose-600 text-white text-xs font-black flex items-center justify-center shrink-0">!</span>
-                                    <span>정확한 시설 위치 및 대피 동선은</span>
-                                </div>
-                                <p class="text-xs sm:text-sm font-black text-rose-700 leading-snug">
-                                    현장 안내 · 공식 안내도 확인
-                                </p>
+                            <div class="bg-white rounded-2xl p-5 border border-slate-300 shadow-sm">
+                                <div class="font-extrabold text-slate-900 text-base sm:text-lg mb-1.5">🎪 외부 광장 & 입장 동선</div>
+                                <p class="text-slate-700 text-sm sm:text-[15px] font-bold leading-relaxed">${cfg.outerPlaza}</p>
                             </div>
                         </div>
                     </div>
-                `;
-            } else if (sid === 'jamsil') {
-                container.innerHTML = `
-                    <div class="w-full rounded-3xl overflow-hidden shadow-xl border-2 border-[#131230]/30 bg-gradient-to-b from-[#0b132b] via-[#1c2541] to-[#e2e8f0] text-slate-900">
-                        <!-- Top Banner Header -->
-                        <div class="relative bg-gradient-to-r from-[#0b132b] via-[#131230] to-[#0b132b] text-white px-6 py-5 flex items-center justify-between border-b-4 border-[#ed1c24]">
-                            <div class="hidden sm:flex items-center gap-2 text-rose-400 text-xs font-extrabold tracking-widest">
-                                <i class="fa-solid fa-baseball text-xl"></i>
-                                <span>SEOUL JAMSIL BASEBALL STADIUM</span>
-                            </div>
-                            <h3 class="mx-auto font-poster text-2xl sm:text-4xl tracking-wide text-white drop-shadow-md text-center">
-                                잠실야구장 시설 안내도 <span class="text-base sm:text-xl font-sans font-extrabold text-slate-300">— 두산 베어스 · LG 트윈스 관람 참고용 —</span>
-                            </h3>
-                            <div class="hidden sm:flex items-center gap-1.5 text-rose-400">
-                                <i class="fa-solid fa-baseball text-2xl"></i>
-                            </div>
-                        </div>
+                </div>
+            `;
 
-                        <!-- Main Grid -->
-                        <div class="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-                            <div class="lg:col-span-9 bg-white/95 rounded-2xl p-3 sm:p-4 shadow-lg border border-slate-300 flex flex-col justify-between">
-                                <div class="relative w-full rounded-xl overflow-hidden bg-slate-200 border border-slate-300">
-                                    <svg viewBox="0 0 920 520" class="w-full h-auto block select-none">
-                                        <rect width="920" height="520" fill="#e2e8f0"/>
-                                        <!-- Circular Concourse & Outer Ring -->
-                                        <circle cx="460" cy="255" r="236" fill="#cbd5e1" stroke="#94a3b8" stroke-width="3"/>
-                                        <circle cx="460" cy="255" r="205" fill="#f8fafc" stroke="#64748b" stroke-width="3"/>
-                                        <circle cx="460" cy="255" r="175" fill="#1d4ed8" stroke="#1e3a8a" stroke-width="2.5"/>
-                                        <circle cx="460" cy="255" r="148" fill="#2563eb" stroke="#93c5fd" stroke-width="1.5"/>
-                                        <!-- Field -->
-                                        <path d="M 332,245 C 332,145 588,145 588,245 L 525,335 Q 460,368 395,335 Z" fill="#16a34a" stroke="#ffffff" stroke-width="2"/>
-                                        <path d="M 460,342 L 392,280 Q 460,232 528,280 Z" fill="#b45309"/>
-                                        <polygon points="460,326 412,282 460,242 508,282" fill="#22c55e"/>
-                                        <circle cx="460" cy="284" r="12" fill="#b45309"/>
-                                        <polygon points="460,332 465,337 463,342 457,342 455,337" fill="#ffffff"/>
-                                        <rect x="504" y="278" width="7" height="7" fill="#ffffff" transform="rotate(45 508 282)"/>
-                                        <rect x="456" y="238" width="7" height="7" fill="#ffffff" transform="rotate(45 460 242)"/>
-                                        <rect x="408" y="278" width="7" height="7" fill="#ffffff" transform="rotate(45 412 282)"/>
-
-                                        <!-- Evacuation Flow Arrows (Green) -->
-                                        <path d="M 310,62 Q 360,35 405,30" fill="none" stroke="#16a34a" stroke-width="4" marker-end="url(#arrow-green)"/>
-                                        <path d="M 610,62 Q 560,35 515,30" fill="none" stroke="#16a34a" stroke-width="4"/>
-                                        <path d="M 225,405 Q 265,442 315,455" fill="none" stroke="#16a34a" stroke-width="4"/>
-                                        <path d="M 695,405 Q 655,442 605,455" fill="none" stroke="#16a34a" stroke-width="4"/>
-
-                                        <!-- 외야 -->
-                                        <g transform="translate(415, 10)">
-                                            <rect width="90" height="34" rx="10" fill="#131230" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="45" y="22" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="900">외야</text>
-                                        </g>
-                                        <!-- Bears House (굿즈샵) -->
-                                        <g transform="translate(46, 56)">
-                                            <rect width="206" height="68" rx="14" fill="#ffffff" stroke="#e11d48" stroke-width="2.5"/>
-                                            <text x="103" y="22" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="14" font-weight="900">Bears House</text>
-                                            <text x="103" y="40" text-anchor="middle" fill="#e11d48" font-family="sans-serif" font-size="12.5" font-weight="800">(굿즈샵)</text>
-                                            <text x="103" y="58" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11.5" font-weight="700">(외야 3루 출입구 방향)</text>
-                                            <circle cx="232" cy="54" r="18" fill="#e11d48" stroke="#fff" stroke-width="2"/>
-                                            <text x="232" y="60" text-anchor="middle" fill="#fff" font-size="15">👕</text>
-                                        </g>
-                                        <!-- 3루 방향 -->
-                                        <g transform="translate(22, 188)">
-                                            <rect width="94" height="46" rx="10" fill="#131230" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="47" y="21" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="13.5" font-weight="900">3루</text>
-                                            <text x="47" y="38" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="12" font-weight="800">방향</text>
-                                            <polygon points="102,23 118,11 118,19 132,19 132,27 118,27 118,35" fill="#131230" stroke="#ffffff" stroke-width="1.5"/>
-                                        </g>
-                                        <!-- 1루 방향 -->
-                                        <g transform="translate(804, 188)">
-                                            <rect width="94" height="46" rx="10" fill="#131230" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="47" y="21" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="13.5" font-weight="900">1루</text>
-                                            <text x="47" y="38" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="12" font-weight="800">방향</text>
-                                            <polygon points="-8,23 -24,11 -24,19 -38,19 -38,27 -24,27 -24,35" fill="#131230" stroke="#ffffff" stroke-width="1.5"/>
-                                        </g>
-                                        <!-- 물품보관함 (현장 확인) -->
-                                        <g transform="translate(52, 296)">
-                                            <rect width="144" height="48" rx="12" fill="#ffffff" stroke="#7e22ce" stroke-width="2.5"/>
-                                            <text x="72" y="21" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="13.5" font-weight="900">물품보관함</text>
-                                            <text x="72" y="39" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11.5" font-weight="700">(현장 확인)</text>
-                                            <circle cx="172" cy="24" r="17" fill="#7e22ce" stroke="#fff" stroke-width="2"/>
-                                            <text x="172" y="30" text-anchor="middle" fill="#fff" font-size="14">🧳</text>
-                                        </g>
-                                        <!-- 흡연구역 (외부 지정구역) -->
-                                        <g transform="translate(32, 434)">
-                                            <rect width="174" height="52" rx="12" fill="#ffffff" stroke="#16a34a" stroke-width="2.5"/>
-                                            <text x="87" y="22" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="14" font-weight="900">흡연구역</text>
-                                            <text x="87" y="40" text-anchor="middle" fill="#16a34a" font-family="sans-serif" font-size="11.5" font-weight="800">(외부 지정구역)</text>
-                                        </g>
-                                        <!-- 안내데스크 (팬서비스) -->
-                                        <g transform="translate(332, 376)">
-                                            <circle cx="62" cy="-14" r="18" fill="#facc15" stroke="#fff" stroke-width="2"/>
-                                            <text x="62" y="-8" text-anchor="middle" fill="#0f172a" font-family="serif" font-size="18" font-weight="900">i</text>
-                                            <rect y="8" width="124" height="46" rx="12" fill="#ffffff" stroke="#eab308" stroke-width="2.5"/>
-                                            <text x="62" y="27" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="13" font-weight="900">안내데스크</text>
-                                            <text x="62" y="44" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11" font-weight="700">(팬서비스)</text>
-                                        </g>
-                                        <!-- 수유실 (2.5F) -->
-                                        <g transform="translate(468, 376)">
-                                            <circle cx="52" cy="-14" r="18" fill="#f43f5e" stroke="#fff" stroke-width="2"/>
-                                            <text x="52" y="-8" text-anchor="middle" fill="#fff" font-size="14">🍼</text>
-                                            <rect y="8" width="104" height="46" rx="12" fill="#ffffff" stroke="#f43f5e" stroke-width="2.5"/>
-                                            <text x="52" y="27" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="13" font-weight="900">수유실</text>
-                                            <text x="52" y="44" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11" font-weight="700">(2.5F)</text>
-                                        </g>
-                                        <!-- 정문 (중앙 출입구) -->
-                                        <g transform="translate(382, 456)">
-                                            <polygon points="78,-22 66,-6 74,-6 74,4 82,4 82,-6 90,-6" fill="#131230" stroke="#ffffff" stroke-width="1.5"/>
-                                            <rect y="4" width="156" height="46" rx="10" fill="#131230" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="78" y="24" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="14.5" font-weight="900">정문</text>
-                                            <text x="78" y="41" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="12" font-weight="800">(중앙 출입구)</text>
-                                        </g>
-                                        <!-- 매표소 (1루 측) -->
-                                        <g transform="translate(718, 286)">
-                                            <circle cx="-26" cy="20" r="17" fill="#2563eb" stroke="#fff" stroke-width="2"/>
-                                            <text x="-26" y="26" text-anchor="middle" fill="#fff" font-size="14">🎟️</text>
-                                            <rect width="104" height="40" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2.5"/>
-                                            <text x="52" y="25" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="14" font-weight="900">매표소</text>
-                                        </g>
-                                        <!-- Restroom & Emergency Exit Icons -->
-                                        <circle cx="295" cy="96" r="15" fill="#2563eb" stroke="#fff" stroke-width="1.5"/><text x="295" y="101" text-anchor="middle" fill="#fff" font-size="12">🚻</text>
-                                        <circle cx="625" cy="96" r="15" fill="#2563eb" stroke="#fff" stroke-width="1.5"/><text x="625" y="101" text-anchor="middle" fill="#fff" font-size="12">🚻</text>
-                                        <circle cx="205" cy="176" r="15" fill="#2563eb" stroke="#fff" stroke-width="1.5"/><text x="205" y="181" text-anchor="middle" fill="#fff" font-size="12">🚻</text>
-                                        <circle cx="715" cy="176" r="15" fill="#2563eb" stroke="#fff" stroke-width="1.5"/><text x="715" y="181" text-anchor="middle" fill="#fff" font-size="12">🚻</text>
-                                        <circle cx="275" cy="348" r="15" fill="#2563eb" stroke="#fff" stroke-width="1.5"/><text x="275" y="353" text-anchor="middle" fill="#fff" font-size="12">🚻</text>
-                                        <circle cx="645" cy="348" r="15" fill="#2563eb" stroke="#fff" stroke-width="1.5"/><text x="645" y="353" text-anchor="middle" fill="#fff" font-size="12">🚻</text>
-                                        <rect x="335" y="42" width="24" height="24" rx="5" fill="#16a34a" stroke="#fff" stroke-width="1.5"/><text x="347" y="59" text-anchor="middle" fill="#fff" font-size="13">🏃</text>
-                                        <rect x="652" y="76" width="24" height="24" rx="5" fill="#16a34a" stroke="#fff" stroke-width="1.5"/><text x="664" y="93" text-anchor="middle" fill="#fff" font-size="13">🏃</text>
-                                        <rect x="282" y="420" width="24" height="24" rx="5" fill="#16a34a" stroke="#fff" stroke-width="1.5"/><text x="294" y="437" text-anchor="middle" fill="#fff" font-size="13">🏃</text>
-                                        <rect x="612" y="420" width="24" height="24" rx="5" fill="#16a34a" stroke="#fff" stroke-width="1.5"/><text x="624" y="437" text-anchor="middle" fill="#fff" font-size="13">🏃</text>
-                                    </svg>
-                                </div>
-                            </div>
-
-                            <!-- Right Sidebar + Notice -->
-                            <div class="lg:col-span-3 flex flex-col gap-4">
-                                <div class="bg-white rounded-2xl overflow-hidden shadow-lg border-2 border-[#131230]/30 flex-1 flex flex-col">
-                                    <div class="bg-[#131230] text-white py-3.5 px-4 text-center font-extrabold text-lg tracking-wide">주요 시설 안내</div>
-                                    <div class="p-4 divide-y divide-slate-200 flex-1 flex flex-col justify-between">
-                                        ${buildFacilityLegendHTML([
-                                            { icon: '👕', bg: 'bg-rose-600', label: '굿즈샵' },
-                                            { icon: '🚻', bg: 'bg-blue-600', label: '화장실' },
-                                            { icon: 'i', bg: 'bg-amber-400', text: 'text-slate-950 font-serif', label: '안내데스크' },
-                                            { icon: '🎟️', bg: 'bg-blue-700', label: '매표소' },
-                                            { icon: '⬆️', bg: 'bg-slate-900', label: '출입구' },
-                                            { icon: '🧳', bg: 'bg-purple-700', label: '물품보관함 (현장 확인)' },
-                                            { icon: '🍼', bg: 'bg-rose-400', label: '수유실' },
-                                            { icon: '🚬', bg: 'bg-emerald-600', label: '흡연구역 (외부 지정구역)' },
-                                            { icon: '🏃', bg: 'bg-green-600', label: '비상구 · 비상 시 대피 동선' }
-                                        ])}
-                                    </div>
-                                </div>
-
-                                <div class="bg-rose-50 rounded-2xl p-4 shadow-md border-2 border-rose-300">
-                                    <div class="flex items-center gap-2 font-extrabold text-base text-rose-700 mb-1.5">
-                                        <span class="w-6 h-6 rounded-full bg-rose-600 text-white text-xs font-black flex items-center justify-center shrink-0">!</span>
-                                        <span>참고해주세요!</span>
-                                    </div>
-                                    <p class="text-xs font-bold text-slate-700 leading-relaxed">
-                                        구단별(두산·LG) 홈 경기 운영에 따라 굿즈샵 및 일부 편의시설 위치가 상이할 수 있으니 현장 안내도 함께 확인 바랍니다.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (sid === 'samsung') {
-                container.innerHTML = `
-                    <div class="w-full rounded-3xl overflow-hidden shadow-xl border-2 border-[#074ca1]/30 bg-gradient-to-b from-[#042f66] via-[#074ca1] to-[#dbeafe] text-slate-900">
-                        <!-- Top Banner Header -->
-                        <div class="relative bg-gradient-to-r from-[#03234d] via-[#074ca1] to-[#03234d] text-white px-6 py-5 flex items-center justify-between border-b-4 border-sky-300/40">
-                            <div class="hidden sm:flex items-center gap-2 font-poster text-xl tracking-wider text-white">
-                                <span>SAMSUNG LIONS</span>
-                            </div>
-                            <h3 class="mx-auto font-poster text-2xl sm:text-4xl tracking-wide text-white drop-shadow-md text-center">
-                                대구 삼성라이온즈파크 시설 안내도 <span class="text-lg sm:text-2xl font-sans font-extrabold text-sky-200">(위치 참고용)</span>
-                            </h3>
-                            <div class="hidden sm:block text-right font-poster text-sky-200 text-xs sm:text-sm leading-tight tracking-wider">
-                                ONE TEAM<br>ONE BODY
-                            </div>
-                        </div>
-
-                        <!-- Main Grid -->
-                        <div class="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-                            <div class="lg:col-span-9 bg-white/95 rounded-2xl p-3 sm:p-4 shadow-lg border border-sky-200 flex flex-col justify-between">
-                                <div class="relative w-full rounded-xl overflow-hidden bg-slate-100 border border-slate-300">
-                                    <svg viewBox="0 0 920 520" class="w-full h-auto block select-none">
-                                        <rect width="920" height="520" fill="#f1f5f9"/>
-                                        <!-- Octagonal Lions Park Outer Bowl -->
-                                        <polygon points="240,65 680,65 785,205 725,425 195,425 135,205" fill="#e2e8f0" stroke="#64748b" stroke-width="3"/>
-                                        <polygon points="265,95 655,95 745,215 695,395 225,395 175,215" fill="#1d4ed8" stroke="#1e3a8a" stroke-width="2.5"/>
-                                        <polygon points="290,120 630,120 710,220 665,372 255,372 210,220" fill="#2563eb" stroke="#93c5fd" stroke-width="1.5"/>
-                                        <!-- Octagonal Field -->
-                                        <polygon points="315,135 605,135 675,222 545,350 375,350 245,222" fill="#16a34a" stroke="#ffffff" stroke-width="2"/>
-                                        <text x="460" y="182" text-anchor="middle" fill="#ffffff" font-family="Georgia, serif" font-style="italic" font-size="24" font-weight="900" opacity="0.9">SL</text>
-                                        <!-- Infield Diamond -->
-                                        <path d="M 460,358 L 382,286 Q 460,232 538,286 Z" fill="#b45309"/>
-                                        <polygon points="460,340 405,288 460,244 515,288" fill="#22c55e"/>
-                                        <circle cx="460" cy="290" r="13" fill="#b45309"/>
-                                        <polygon points="460,346 466,351 464,357 456,357 454,351" fill="#ffffff"/>
-                                        <rect x="511" y="284" width="8" height="8" fill="#ffffff" transform="rotate(45 515 288)"/>
-                                        <rect x="456" y="240" width="8" height="8" fill="#ffffff" transform="rotate(45 460 244)"/>
-                                        <rect x="401" y="284" width="8" height="8" fill="#ffffff" transform="rotate(45 405 288)"/>
-
-                                        <!-- Gate 2 (외야) -->
-                                        <g transform="translate(395, 14)">
-                                            <rect width="130" height="44" rx="10" fill="#042f66" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="65" y="20" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="900">Gate 2</text>
-                                            <text x="65" y="37" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="12" font-weight="800">(외야)</text>
-                                        </g>
-                                        <!-- Gate 1 (AWAY, 1루) -->
-                                        <g transform="translate(22, 186)">
-                                            <rect width="136" height="46" rx="10" fill="#042f66" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="68" y="21" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="900">Gate 1</text>
-                                            <text x="68" y="38" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="11.5" font-weight="800">(AWAY, 1루)</text>
-                                            <polygon points="144,23 160,11 160,19 174,19 174,27 160,27 160,35" fill="#074ca1" stroke="#ffffff" stroke-width="1.5"/>
-                                        </g>
-                                        <!-- Gate 21 (HOME, 3루) -->
-                                        <g transform="translate(756, 200)">
-                                            <rect width="142" height="46" rx="10" fill="#042f66" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="71" y="21" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="900">Gate 21</text>
-                                            <text x="71" y="38" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="11.5" font-weight="800">(HOME, 3루)</text>
-                                            <polygon points="-8,23 -24,11 -24,19 -38,19 -38,27 -24,27 -24,35" fill="#074ca1" stroke="#ffffff" stroke-width="1.5"/>
-                                        </g>
-                                        <!-- 정문 (중앙 출입구) -->
-                                        <g transform="translate(382, 456)">
-                                            <polygon points="78,-22 66,-6 74,-6 74,4 82,4 82,-6 90,-6" fill="#074ca1" stroke="#ffffff" stroke-width="1.5"/>
-                                            <rect y="4" width="156" height="46" rx="10" fill="#042f66" stroke="#ffffff" stroke-width="2"/>
-                                            <text x="78" y="24" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="14.5" font-weight="900">정문</text>
-                                            <text x="78" y="41" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="12" font-weight="800">(중앙 출입구)</text>
-                                        </g>
-                                        <!-- Facility Icons -->
-                                        <circle cx="212" cy="186" r="18" fill="#f43f5e" stroke="#fff" stroke-width="2"/><text x="212" y="192" text-anchor="middle" fill="#fff" font-size="15">🎁</text>
-                                        <circle cx="212" cy="276" r="18" fill="#2563eb" stroke="#fff" stroke-width="2"/><text x="212" y="282" text-anchor="middle" fill="#fff" font-size="15">🚻</text>
-                                        <circle cx="236" cy="342" r="18" fill="#facc15" stroke="#fff" stroke-width="2"/><text x="236" y="348" text-anchor="middle" fill="#0f172a" font-family="serif" font-size="18" font-weight="900">i</text>
-                                        <circle cx="282" cy="376" r="18" fill="#7e22ce" stroke="#fff" stroke-width="2"/><text x="282" y="382" text-anchor="middle" fill="#fff" font-size="15">🎟️</text>
-                                        <circle cx="585" cy="422" r="18" fill="#0284c7" stroke="#fff" stroke-width="2"/><text x="585" y="428" text-anchor="middle" fill="#fff" font-size="15">🧳</text>
-                                        <circle cx="642" cy="382" r="18" fill="#f43f5e" stroke="#fff" stroke-width="2"/><text x="642" y="388" text-anchor="middle" fill="#fff" font-size="15">🍼</text>
-                                        <circle cx="715" cy="292" r="18" fill="#2563eb" stroke="#fff" stroke-width="2"/><text x="715" y="298" text-anchor="middle" fill="#fff" font-size="15">🚻</text>
-                                        <circle cx="715" cy="112" r="18" fill="#16a34a" stroke="#fff" stroke-width="2"/><text x="715" y="118" text-anchor="middle" fill="#fff" font-size="15">🚬</text>
-                                        <circle cx="362" cy="52" r="17" fill="#2563eb" stroke="#fff" stroke-width="2"/><text x="362" y="58" text-anchor="middle" fill="#fff" font-size="14">🚻</text>
-                                        <circle cx="562" cy="48" r="17" fill="#2563eb" stroke="#fff" stroke-width="2"/><text x="562" y="54" text-anchor="middle" fill="#fff" font-size="14">🚻</text>
-                                    </svg>
-                                </div>
-                            </div>
-
-                            <!-- Right Sidebar -->
-                            <div class="lg:col-span-3 bg-white rounded-2xl overflow-hidden shadow-lg border-2 border-[#074ca1]/30 flex flex-col">
-                                <div class="bg-[#042f66] text-white py-3.5 px-4 text-center font-extrabold text-lg tracking-wide">주요 시설 안내</div>
-                                <div class="p-4 divide-y divide-slate-200 flex-1 flex flex-col justify-between">
-                                    ${buildFacilityLegendHTML([
-                                        { icon: '🎁', bg: 'bg-rose-500', label: '굿즈샵 / 팀스토어' },
-                                        { icon: '🚻', bg: 'bg-blue-600', label: '화장실' },
-                                        { icon: 'i', bg: 'bg-amber-400', text: 'text-slate-950 font-serif', label: '안내데스크' },
-                                        { icon: '🎟️', bg: 'bg-purple-700', label: '매표소' },
-                                        { icon: '⬆️', bg: 'bg-slate-900', label: '출입구' },
-                                        { icon: '🧳', bg: 'bg-sky-600', label: '물품보관함' },
-                                        { icon: '🍼', bg: 'bg-rose-400', label: '수유실' },
-                                        { icon: '🚬', bg: 'bg-emerald-600', label: '흡연구역' },
-                                        { icon: '🏃', bg: 'bg-green-600', label: '피난계획도 (3F, 4F, 5F)' }
-                                    ])}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Bottom Section: 3층 / 4층 / 5층 피난계획도 + Notice -->
-                        <div class="px-4 sm:px-6 pb-6 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-                            <div class="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                                ${['3층 피난계획도', '4층 피난계획도', '5층 피난계획도'].map((floor, idx) => `
-                                    <div class="bg-white rounded-2xl overflow-hidden shadow-md border-2 border-[#074ca1]/30 flex flex-col">
-                                        <div class="bg-[#042f66] text-white py-2 text-center font-extrabold text-sm sm:text-base">${floor}</div>
-                                        <div class="p-3 flex items-center justify-center relative flex-1 bg-slate-50">
-                                            <svg viewBox="0 0 140 100" class="w-32 h-24">
-                                                <polygon points="35,15 105,15 128,45 112,88 28,88 12,45" fill="#cbd5e1" stroke="#64748b" stroke-width="2"/>
-                                                <polygon points="44,24 96,24 114,48 100,78 40,78 26,48" fill="${idx === 0 ? '#86efac' : idx === 1 ? '#bbf7d0' : '#dcfce7'}" stroke="#475569" stroke-width="1.5"/>
-                                                <polygon points="70,74 52,56 70,38 88,56" fill="#22c55e"/>
-                                            </svg>
-                                            <span class="absolute top-2.5 right-3 w-6 h-6 rounded bg-green-600 text-white text-xs flex items-center justify-center shadow">🏃</span>
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-
-                            <div class="lg:col-span-4 bg-sky-50/95 rounded-2xl p-4 sm:p-5 shadow-md border-2 border-[#074ca1]/30 flex flex-col justify-center">
-                                <div class="flex items-center gap-2 font-extrabold text-base sm:text-lg text-[#042f66] mb-2.5">
-                                    <span class="w-6 h-6 rounded-full bg-[#074ca1] text-white text-xs font-black flex items-center justify-center shrink-0">!</span>
-                                    <span>이용 시 참고해주세요!</span>
-                                </div>
-                                <ul class="space-y-1.5 text-xs sm:text-sm font-bold text-slate-700 leading-relaxed">
-                                    <li>• 세부 위치는 현장 안내를 확인해주세요.</li>
-                                    <li>• 일부 시설은 층별로 위치가 상이할 수 있습니다.</li>
-                                    <li>• 피난계획도는 3층, 4층, 5층에 제공됩니다.</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                const stadium = STADIUMS.find(s => s.id === state.activeStadiumId);
-                container.innerHTML = `
-                    <div class="bg-white rounded-3xl p-10 border border-slate-200 shadow-sm text-center min-h-[420px] flex flex-col items-center justify-center">
-                        <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-3xl mb-4">
-                            <i class="fa-solid fa-map-location-dot"></i>
-                        </div>
-                        <h4 class="font-extrabold text-lg sm:text-xl text-slate-800">${stadium ? stadium.name : ''} 시설 안내도 준비 중</h4>
-                        <p class="text-xs sm:text-sm text-slate-500 mt-1.5">나머지 구단별 시설 안내도 이미지를 보내주시면 순차적으로 채워드리겠습니다.</p>
-                    </div>
-                `;
-            }
+            initStadiumMapPanZoom();
         }
 
         function clearChatHistory() {
